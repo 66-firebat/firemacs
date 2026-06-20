@@ -36,7 +36,7 @@ Used as a hint, but my/vterm-new always picks the lowest free index.")
   "Return the lowest unused vterm index (0, 1, 2, ...).
 Scans all buffer names for \"vterm-<N>\" prefixes."
   (let ((i 0))
-    (while (let ((target (format "vterm-%d" i)))
+    (while (let ((target (format "%d --" i)))
              (catch 'exists
                (dolist (b (buffer-list) nil)
                  (when (string-prefix-p target (buffer-name b))
@@ -47,19 +47,15 @@ Scans all buffer names for \"vterm-<N>\" prefixes."
 (defun my/vterm-new ()
   "Spawn a new vterm at the lowest available index."
   (interactive)
-  (let* ((vterm-bufs (seq-filter (lambda (b)
-                                    (string-prefix-p "vterm-" (buffer-name b)))
-                                  (buffer-list)))
-         (index (my/vterm-next-available)))
-    (message "DEBUG: vterm-buffers=%d next=%d" (length vterm-bufs) index)
+  (let ((index (my/vterm-next-available)))
     (setq my-vterm-counter index)
-    (let ((buf-name (format "vterm-%d -- waiting" index)))
+    (let ((buf-name (format "%d -- waiting" index)))
       (vterm buf-name)
       (with-current-buffer buf-name
         (when (and (buffer-live-p (current-buffer))
                    vterm--process
                    (process-live-p vterm--process))
-          (rename-buffer (format "vterm-%d -- %d" index
+          (rename-buffer (format "%d -- %d" index
                                   (process-id vterm--process))))))))
 
 ;; ═════════════════════════════════════════════════════════════════
@@ -118,7 +114,8 @@ Scans all buffer names for \"vterm-<N>\" prefixes."
 Sorted numerically."
   (let ((indices (delq nil
                        (mapcar (lambda (b)
-                                 (when (string-match "\\`vterm-\\([0-9]+\\)"
+                                 (let ((n (buffer-name b)))
+                                   (when (string-match "\\`\\([0-9]+\\) --" n)
                                                      (buffer-name b))
                                    (match-string 1 (buffer-name b))))
                                (my/vterm-buffer-list)))))
@@ -126,13 +123,14 @@ Sorted numerically."
             (sort (mapcar #'string-to-number indices) #'<))))
 
 (defun my/vterm-spawn-at-index (index)
-  "Create a new vterm buffer with the given INDEX."
-  (let* ((buf-name (format "vterm-%d -- waiting" index)))
-    (vterm buf-name)
-    (with-current-buffer buf-name
+  "Create a new vterm buffer with the given INDEX and return it."
+  (let* ((buf-name (format "%d -- waiting" index))
+         (buf (vterm buf-name)))
+    (with-current-buffer buf
       (when (and vterm--process (process-live-p vterm--process))
-        (rename-buffer (format "vterm-%d -- %d" index
-                                (process-id vterm--process)))))))
+        (rename-buffer (format "%d -- %d" index
+                                (process-id vterm--process)))))
+    buf))
 
 ;; ═════════════════════════════════════════════════════════════════
 ;;  Goto functions — called by digit keybindings below
@@ -154,13 +152,13 @@ Sorted numerically."
               (if buf (switch-to-buffer buf)
                 (my/vterm-spawn-at-index index)))
           (my/vterm-spawn-at-index index)
-          (message "Spawned vterm-%d" index))))))
+          (message "Spawned vterm %d" index))))))
 
 (defun my/vterm-buffer-by-index (index)
   "Return the vterm buffer with the given INDEX, or nil."
   (car (seq-filter
         (lambda (b)
-          (string-match-p (format "\\`vterm-%d" index) (buffer-name b)))
+          (string-match-p (format "\\`%d --" index) (buffer-name b)))
         (my/vterm-buffer-list))))
 
 (defun my/buffer-goto ()
@@ -251,27 +249,7 @@ Sorted numerically."
   "n a" '(org-agenda :which-key "agenda")
 
   ;; Buffer / Vterm digits (hidden from which-key)
-  "b r" '(my/switch-to-other-buffer :which-key "previous buffer")
-  "b 0" '(my/buffer-goto :which-key " ")
-  "b 1" '(my/buffer-goto :which-key " ")
-  "b 2" '(my/buffer-goto :which-key " ")
-  "b 3" '(my/buffer-goto :which-key " ")
-  "b 4" '(my/buffer-goto :which-key " ")
-  "b 5" '(my/buffer-goto :which-key " ")
-  "b 6" '(my/buffer-goto :which-key " ")
-  "b 7" '(my/buffer-goto :which-key " ")
-  "b 8" '(my/buffer-goto :which-key " ")
-  "b 9" '(my/buffer-goto :which-key " ")
-  "v 0" '(my/vterm-goto :which-key " ")
-  "v 1" '(my/vterm-goto :which-key " ")
-  "v 2" '(my/vterm-goto :which-key " ")
-  "v 3" '(my/vterm-goto :which-key " ")
-  "v 4" '(my/vterm-goto :which-key " ")
-  "v 5" '(my/vterm-goto :which-key " ")
-  "v 6" '(my/vterm-goto :which-key " ")
-  "v 7" '(my/vterm-goto :which-key " ")
-  "v 8" '(my/vterm-goto :which-key " ")
-  "v 9" '(my/vterm-goto :which-key " "))
+  "b r" '(my/switch-to-other-buffer :which-key "previous buffer"))
 
 (provide 'keybinds)
 ;; keybinds.el ends here

@@ -376,7 +376,15 @@
   (load (expand-file-name "keybinds.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
-;;  13e.  Panes — Window Dividers
+;;  13e.  Consult — Custom buffer sources
+;; ---------------------------------------------------------------------------
+
+(let ((real-dir (file-name-directory
+                 (file-truename (or load-file-name buffer-file-name)))))
+  (load (expand-file-name "consult-buffer.el" real-dir)))
+
+;; ---------------------------------------------------------------------------
+;;  13f.  Panes — Window Dividers
 ;; ---------------------------------------------------------------------------
 
 (let ((real-dir (file-name-directory
