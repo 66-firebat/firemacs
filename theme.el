@@ -91,7 +91,7 @@ Background: #2b2b2b  Accent: #ff4400")
  ;; ═══════════════════════════════════════════════════════════════
 
  `(mode-line ((t (:background ,firebat-bg :foreground ,firebat-accent :weight bold))))
- `(mode-line-inactive ((t (:background ,firebat-region :foreground ,firebat-fg-alt))))
+ `(mode-line-inactive ((t (:background ,firebat-bg :foreground ,firebat-fg-alt))))
  `(mode-line-highlight ((t (:foreground ,firebat-accent))))
  `(mode-line-emphasis ((t (:foreground ,firebat-accent :weight bold))))
 

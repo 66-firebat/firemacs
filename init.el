@@ -174,30 +174,9 @@
 ;;  6.  Doom Modeline — A clean, informative mode line with Nerd Font icons
 ;; ---------------------------------------------------------------------------
 
-;; Nerd Icons provides the icon font. You need a Nerd Font installed in
-;; your terminal emulator for these to display correctly.
-;; Recommended: "JetBrainsMono Nerd Font" or "FiraCode Nerd Font"
-(use-package nerd-icons
-  :commands nerd-icons-install-fonts
-  :config
-  ;; For terminal use, explicitly set the icon font family
-  (setq nerd-icons-font-family "Symbols Nerd Font Mono"))
-
-;; Doom Modeline — a modern mode line inspired by Doom Emacs
-(use-package doom-modeline
-  :demand t
-  :config
-  (doom-modeline-mode 1)
-  ;; Terminal-friendly tweaks
-  (setq doom-modeline-height 1)          ;; Slim in terminal
-  (setq doom-modeline-bar-width 1)       ;; Thin state indicator
-  (setq doom-modeline-major-mode-icon t) ;; Show major mode icon
-  (setq doom-modeline-minor-modes nil)   ;; Hide minor modes (cleaner)
-  (setq doom-modeline-enable-word-count nil)
-  (setq doom-modeline-buffer-encoding nil)
-  (setq doom-modeline-indent-info nil)
-  (setq doom-modeline-env-version t)     ;; Show Python/Julia version
-  (setq doom-modeline-github nil))       ;; No GitHub notifications
+(let ((real-dir (file-name-directory
+                 (file-truename (or load-file-name buffer-file-name)))))
+  (load (expand-file-name "doom-modeline.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
 ;;  7.  Modern Minibuffer Completion — Vertico + Consult + Marginalia
