@@ -196,6 +196,7 @@ Sorted numerically."
   "f f" '(find-file :which-key "find file")
   "f r" '(consult-recent-file :which-key "recent files")
   "f s" '(save-buffer :which-key "save buffer")
+  "f o" '(other-frame :which-key "other frame")
 
   ;; Buffers
   "k k" '(my/switch-to-other-buffer :which-key "previous buffer")
@@ -226,6 +227,7 @@ Sorted numerically."
   ;; Pi — AI coding agent (prefix group: SPC p i)
   "p i" '(nil :which-key "pi")
   "p i i" '(pi-coding-agent :which-key "start/focus pi")
+  "p i f" '(my/pi-frame :which-key "pi in new frame")
   "p i t" '(pi-coding-agent-toggle :which-key "toggle pi windows")
   "p i s" '(pi-coding-agent-open-session-file :which-key "open session file")
   "p i m" '(pi-coding-agent-select-model :which-key "select model")

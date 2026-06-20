@@ -120,12 +120,79 @@
                 (_          nil)))))
 
 ;; ---------------------------------------------------------------------------
-;;  Convenience alias
+;;  Convenience Alias & Frame Command
 ;; ---------------------------------------------------------------------------
 
 ;; `M-x pi` starts or focuses the current project's pi session — shorter
 ;; than typing `M-x pi-coding-agent` every time.
 (defalias 'pi 'pi-coding-agent)
+
+;; ── Dedicated Pi Frame ───────────────────────────────────────────────────
+;; Opens Pi in its own Emacs frame, leaving your main frame for other work.
+;; Bound at SPC p i f.
+;;;###autoload
+(defun my/pi-frame ()
+  "Open a dedicated frame for the Pi coding agent."
+  (interactive)
+  (let ((frame (make-frame '((name . "Pi Agent")
+                             (width . 100)
+                             (height . 40)))))
+    (select-frame frame)
+    (pi-coding-agent)))
+
+;; ---------------------------------------------------------------------------
+;;  Vertical Split Layout (chat left, input right)
+;; ---------------------------------------------------------------------------
+;; By default pi splits horizontally (chat top, input bottom).  This section
+;; overrides the layout to a vertical split: chat on the left, input on the
+;; right — like a side panel for composing prompts.
+;;
+;; The advice replaces `pi-coding-agent--display-buffers' with our own version
+;; that uses `split-window' with direction `right' instead of `below'.
+
+(defun my/pi--input-width-for-window (window)
+  "Return input pane width — half the total WINDOW width (50/50 split)."
+  (let ((window-width (window-total-width window)))
+    (max window-min-width
+         (/ window-width 2))))
+
+(defun my/pi-display-buffers-vertical (chat-buf input-buf)
+  "Display INPUT-BUF (left) and CHAT-BUF (right) in a vertical split.
+Replaces the default horizontal split from `pi-coding-agent--display-buffers'."
+  (let* ((chat-wins (get-buffer-window-list chat-buf nil))
+         (input-wins (get-buffer-window-list input-buf nil))
+         (selected (selected-window))
+         (preferred (pi-coding-agent--preferred-display-window
+                     chat-wins input-wins selected))
+         (target (pi-coding-agent--best-display-window preferred))
+         (input-win nil))
+    ;; Remove stale input windows when restoring from an input-only view.
+    (when (and input-wins (not chat-wins))
+      (pi-coding-agent--delete-extra-input-windows input-wins target))
+    (with-selected-window target
+      (unless (pi-coding-agent--window-can-split-for-input-p target)
+        (delete-other-windows target))
+      (unless (pi-coding-agent--window-can-split-for-input-p target)
+        (user-error "Window too small for chat + input layout"))
+      (switch-to-buffer chat-buf)
+      (with-current-buffer chat-buf
+        (goto-char (point-max)))
+      (let ((input-width (my/pi--input-width-for-window target)))
+        ;; Split to the left: input on left, chat on right
+        (setq input-win (split-window nil input-width 'left))
+        (set-window-buffer input-win input-buf)
+        ;; Soft-dedicate the input window so `display-buffer' never
+        ;; targets it (magit, help, compilation, etc.).  The 'side
+        ;; value still allows `switch-to-buffer' and `C-x o'.
+        (set-window-dedicated-p input-win 'side)))
+    (when (window-live-p input-win)
+      (select-window input-win))))
+
+;; Override the upstream display-buffers with our vertical-split version.
+;; This advice is loaded after the package so the original function exists.
+(with-eval-after-load 'pi-coding-agent-ui
+  (advice-add 'pi-coding-agent--display-buffers :override
+              #'my/pi-display-buffers-vertical))
 
 
 
