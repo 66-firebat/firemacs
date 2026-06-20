@@ -57,8 +57,10 @@
   (setq centaur-tabs-right-edge-margin "")
 
   ;; ── Close button & modified marker ───────────────────────────
-  (setq centaur-tabs-set-close-button nil)  ;; Hide close button (cleaner)
-  (setq centaur-tabs-set-modified-marker t) ;; Show "*" on modified buffers
+  ;; Built-in marker (⏺) is disabled.  The modified indicator 󱍸
+  ;; is handled inside `my/centaur-tabs-tab-label' instead.
+  (setq centaur-tabs-set-close-button nil)
+  (setq centaur-tabs-set-modified-marker nil)
 
   ;; ── Tab height (terminal-friendly) ───────────────────────────
   (setq centaur-tabs-height 24)
@@ -169,14 +171,18 @@ Result is cached per project path."
 (defun my/centaur-tabs-tab-label (tab)
   "Return a label for TAB.
 
-Active tab: │vterm.el│    Inactive tabs:  vterm.el  (padded)."
+Modified buffer:  󱍸 filename   Unmodified:  filename"
   (let* ((tabset (centaur-tabs-current-tabset))
          (selected-p (and tabset (centaur-tabs-selected-p tab tabset)))
          (buf (car tab))
-         (bufname (buffer-name buf)))
+         (bufname (buffer-name buf))
+         (modified (and (buffer-modified-p buf)
+                        (not (with-current-buffer buf
+                               (derived-mode-p 'vterm-mode)))))
+         (mod-mark (if modified "󱍸 " "")))
     (if selected-p
-        (format "█ %s  " bufname)
-      (format " %s " bufname))))
+        (format "█ %s%s  " mod-mark bufname)
+      (format " %s%s " mod-mark bufname))))
 
 ;; ── Trim trailing space ───────────────────────────────────────
 ;; centaur-tabs-line-tab (a defsubst) appends " " to every tab

@@ -198,7 +198,7 @@ Sorted numerically."
   "f s" '(save-buffer :which-key "save buffer")
 
   ;; Buffers
-  "b b" '(consult-buffer :which-key "switch buffer")
+  "b b" '(my/switch-to-other-buffer :which-key "previous buffer")
   "b d" '(kill-current-buffer :which-key "kill buffer")
   "b n" '(next-buffer :which-key "next buffer")
   "b p" '(previous-buffer :which-key "previous buffer")
@@ -256,7 +256,7 @@ Sorted numerically."
   "n a" '(org-agenda :which-key "agenda")
 
   ;; Buffer / Vterm digits (hidden from which-key)
-  "b r" '(my/switch-to-other-buffer :which-key "previous buffer"))
+  )
 
 (provide 'keybinds)
 ;; keybinds.el ends here
