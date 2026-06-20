@@ -403,6 +403,19 @@
   (load (expand-file-name "centaur-tabs.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
+;;  13h.  Dirvish — Modern File Manager
+;; ---------------------------------------------------------------------------
+;; Dirvish enhances Dired with file previews, multiple layouts, VC
+;; integration, and a polished UI. It replaces ranger.
+;; Install: M-x package-install RET dirvish RET
+;;
+;; Keybindings: SPC d d → dirvish,  SPC d s → sidebar,  SPC d f → fd search
+;;
+(let ((real-dir (file-name-directory
+                 (file-truename (or load-file-name buffer-file-name)))))
+  (load (expand-file-name "dirvish.el" real-dir)))
+
+;; ---------------------------------------------------------------------------
 ;;  14.  Firebat Theme
 ;; ---------------------------------------------------------------------------
 
