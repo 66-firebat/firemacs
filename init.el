@@ -113,6 +113,9 @@
   (setq evil-want-C-i-jump nil)        ;; Keep TAB as normal (not C-i)
   (setq evil-want-Y-yank-to-eol t)     ;; Y yanks to end of line (like Vim)
   (setq evil-want-fine-undo t)         ;; Granular undo per insertion
+  (setq evil-move-beyond-eol t)        ;; Like Vim's virtualedit=all
+  (setq evil-move-cursor-back nil)     ;; Don't snap cursor off blank chars
+  (setq evil-cross-lines t)            ;; Allow h/l across line boundaries
   (setq evil-split-window-below t)     ;; :split opens below
   (setq evil-vsplit-window-right t)    ;; :vsplit opens to the right
   (setq evil-undo-system 'undo-redo)   ;; Modern undo-redo (Emacs 28+)
