@@ -24,43 +24,64 @@
   "S" 'avy-goto-char-2
   "gs" 'avy-goto-line)
 
-;; ── Custom vterm buffer ───────────────────────────────
-;; Always spawns a new vterm with incrementing index + PID.
+;; ═════════════════════════════════════════════════════════════════
+;;  SPC t t — Spawn Vterm
+;; ═════════════════════════════════════════════════════════════════
 
 (defvar my-vterm-counter -1
-  "Incremented each time a new vterm is spawned via SPC t t.
-Starts at -1 so the first spawn is index 0.")
+  "Index of the most recently spawned vterm via SPC t t.
+Used as a hint, but my/vterm-new always picks the lowest free index.")
+
+(defun my/vterm-get-index (buffer)
+  "Extract the vterm index from BUFFER name, or nil.
+A buffer named \"vterm-3 -- 12345\" returns the integer 3."
+  (let ((name (buffer-name buffer)))
+    (when (and name (string-match "\\`vterm-\([0-9]+\)" name))
+      (string-to-number (match-string 1 name)))))
+
+(defun my/vterm-used-indices ()
+  "Return a sorted list of all vterm indices currently in use."
+  (let ((indices (delq nil
+                       (mapcar #'my/vterm-get-index (buffer-list)))))
+    (sort (delete-dups indices) #'<)))
+
+(defun my/vterm-next-available ()
+  "Return the lowest unused vterm index, starting from 0."
+  (let ((used (my/vterm-used-indices))
+        (i 0))
+    (while (member i used)
+      (setq i (1+ i)))
+    i))
 
 (defun my/vterm-new ()
-  "Spawn a new vterm buffer with an incrementing index and PID."
+  "Spawn a new vterm at the lowest available index."
   (interactive)
-  (setq my-vterm-counter (1+ my-vterm-counter))
-  (let* ((index my-vterm-counter)
-         (buf-name (format "vterm-%d -- waiting" index)))
-    (vterm buf-name)
-    (with-current-buffer buf-name
-      (when (and (buffer-live-p (current-buffer))
-                 vterm--process
-                 (process-live-p vterm--process))
-        (rename-buffer (format "vterm-%d -- %d" index
-                                (process-id vterm--process)))))))
+  (let ((index (my/vterm-next-available)))
+    (setq my-vterm-counter index)
+    (let ((buf-name (format "vterm-%d -- waiting" index)))
+      (vterm buf-name)
+      (with-current-buffer buf-name
+        (when (and (buffer-live-p (current-buffer))
+                   vterm--process
+                   (process-live-p vterm--process))
+          (rename-buffer (format "vterm-%d -- %d" index
+                                  (process-id vterm--process))))))))
 
-;; ── Previous buffer toggle ─────────────────────────────
-;; Uses Emacs built-in other-buffer to go back to the last buffer.
+;; ═════════════════════════════════════════════════════════════════
+;;  SPC b r — Previous Buffer
+;; ═════════════════════════════════════════════════════════════════
 
 (defun my/switch-to-other-buffer ()
-  "Switch to the most recently viewed buffer.  Toggles A -> B -> A.
-Uses `other-buffer' with the current buffer excluded so it returns
-the actual second-most-recent buffer, not just an 'interesting' one."
+  "Switch to the most recently viewed buffer.  Toggles A -> B -> A."
   (interactive)
   (let ((other (other-buffer (current-buffer) t)))
     (if other
         (switch-to-buffer other)
       (message "No previous buffer available"))))
 
-;; ── Excluded buffers for SPC b # ────────────────────────
-;; Buffers matching these names or modes are skipped when
-;; numbering buffers for `my/buffer-by-index'.
+;; ═════════════════════════════════════════════════════════════════
+;;  SPC b 0-9 — Jump to buffer by index
+;; ═════════════════════════════════════════════════════════════════
 
 (defvar my/excluded-buffer-names '("*scratch*" "*Messages*")
   "Buffer names excluded from SPC b # navigation.")
@@ -79,45 +100,35 @@ the actual second-most-recent buffer, not just an 'interesting' one."
                       b)))
                 (buffer-list))))
 
-;; ── SPC b # — jump to buffer by index ──────────────────
+(defun my/filtered-buffer-index-strings ()
+  "Return numbered strings like \"3: README.md\" for SPC b completion."
+  (let ((n 0))
+    (mapcar (lambda (b)
+              (prog1 (format "%d: %s" n (buffer-name b))
+                (setq n (1+ n))))
+            (my/filtered-buffer-list))))
 
-(defun my/buffer-by-index (index)
-  "Switch to the non-excluded buffer at INDEX (0 = most recent).
-Shows a numbered list before prompting."
-  (interactive)
-  (let ((bufs (my/filtered-buffer-list)))
-    ;; Show numbered list in a help window
-    (with-help-window "*Buffer Index*"
-      (with-current-buffer standard-output
-        (let ((n 0))
-          (dolist (b bufs)
-            (insert (format "%3d: %s\n" n (buffer-name b)))
-            (setq n (1+ n))))))
-    (unless bufs
-      (user-error "No available buffers"))
-    (if (and (natnump index) (< index (length bufs)))
-        (switch-to-buffer (nth index bufs))
-      (message "No buffer at index %d (max %d)" index (1- (length bufs))))))
+;; ═════════════════════════════════════════════════════════════════
+;;  SPC v 0-9 — Jump to / spawn vterm by index
+;; ═════════════════════════════════════════════════════════════════
 
-(defun my/buffer-by-index-prompt ()
-  "Prompt for a buffer index and switch to it."
-  (interactive)
-  (let ((bufs (my/filtered-buffer-list)))
-    (my/buffer-by-index
-     (read-number (format "Enter buffer number (0-%d): " (1- (length bufs)))))))
+(defun my/vterm-buffer-list ()
+  "Return all vterm-mode buffers."
+  (seq-filter (lambda (b)
+                (with-current-buffer b (derived-mode-p 'vterm-mode)))
+              (buffer-list)))
 
-;; ── SPC v # — jump to vterm by index ───────────────────
-;; Independent of the vterm counter system.  Switches to an
-;; existing vterm or spawns one at the requested index.
-
-(defun my/vterm-buffer-by-index (index)
-  "Return the vterm buffer for INDEX, or nil if none exists."
-  (car (seq-filter
-        (lambda (b)
-          (with-current-buffer b
-            (and (derived-mode-p 'vterm-mode)
-                 (string-match-p (format "\\`vterm-%d" index) (buffer-name b)))))
-        (buffer-list))))
+(defun my/vterm-index-strings ()
+  "Return index strings like \"7\" for all existing vterm buffers.
+Sorted numerically."
+  (let ((indices (delq nil
+                       (mapcar (lambda (b)
+                                 (when (string-match "\\`vterm-\\([0-9]+\\)"
+                                                     (buffer-name b))
+                                   (match-string 1 (buffer-name b))))
+                               (my/vterm-buffer-list)))))
+    (mapcar #'number-to-string
+            (sort (mapcar #'string-to-number indices) #'<))))
 
 (defun my/vterm-spawn-at-index (index)
   "Create a new vterm buffer with the given INDEX."
@@ -128,21 +139,56 @@ Shows a numbered list before prompting."
         (rename-buffer (format "vterm-%d -- %d" index
                                 (process-id vterm--process)))))))
 
-(defun my/vterm-by-index (index)
-  "Switch to vterm INDEX, or spawn it if missing."
-  (interactive)
-  (let ((buf (my/vterm-buffer-by-index index)))
-    (if buf
-        (switch-to-buffer buf)
-      (my/vterm-spawn-at-index index)
-      (message "Spawned vterm-%d" index))))
+;; ═════════════════════════════════════════════════════════════════
+;;  Goto functions — called by digit keybindings below
+;; ═════════════════════════════════════════════════════════════════
 
-(defun my/vterm-by-index-prompt ()
-  "Prompt for a vterm index and switch to or spawn it."
+(defun my/vterm-goto ()
+  "Jump to or spawn a vterm by index.  Pressed digit seeds the search."
   (interactive)
-  (my/vterm-by-index (read-number "Enter vterm number: ")))
+  (let* ((keys (this-single-command-keys))
+         (key (aref keys (1- (length keys))))
+         (initial (char-to-string key))
+         (candidates (my/vterm-index-strings))
+         (input (completing-read "vterm: " candidates nil nil initial)))
+    (if (string= input "")
+        (message "Cancelled")
+      (let ((index (string-to-number input)))
+        (if (member input candidates)
+            (let ((buf (my/vterm-buffer-by-index index)))
+              (if buf (switch-to-buffer buf)
+                (my/vterm-spawn-at-index index)))
+          (my/vterm-spawn-at-index index)
+          (message "Spawned vterm-%d" index))))))
 
-;; ── SPC leader keybindings ─────────────────────────────────────
+(defun my/vterm-buffer-by-index (index)
+  "Return the vterm buffer with the given INDEX, or nil."
+  (car (seq-filter
+        (lambda (b)
+          (string-match-p (format "\\`vterm-%d" index) (buffer-name b)))
+        (my/vterm-buffer-list))))
+
+(defun my/buffer-goto ()
+  "Jump to a non-excluded buffer by index.  Pressed digit seeds the search."
+  (interactive)
+  (let* ((keys (this-single-command-keys))
+         (key (aref keys (1- (length keys))))
+         (initial (char-to-string key))
+         (candidates (my/filtered-buffer-index-strings))
+         (input (completing-read "buffer: " candidates nil nil initial)))
+    (unless (string= input "")
+      (let* ((colon-pos (string-match ":" input))
+             (index-str (if colon-pos (substring input 0 colon-pos) input))
+             (index (string-to-number index-str))
+             (bufs (my/filtered-buffer-list))
+             (buf (nth index bufs)))
+        (if buf
+            (switch-to-buffer buf)
+          (message "No buffer at index %d" index))))))
+
+;; ═════════════════════════════════════════════════════════════════
+;;  SPC leader keybindings
+;; ═════════════════════════════════════════════════════════════════
 
 (leader
   ;; Files
@@ -207,17 +253,30 @@ Shows a numbered list before prompting."
 
   ;; Org / Notes
   "n c" '(org-capture :which-key "capture")
-  "n a" '(org-agenda :which-key "agenda"))
+  "n a" '(org-agenda :which-key "agenda")
 
-;; ── SPC b # and SPC v # (separate leader calls) ─────────
-;; These are defined separately for clarity and to avoid deeply
-;; nested (leader ...) forms.  SPC v uses a prefix-key structure
-;; so additional vterm bindings can be added under it later.
-(leader
+  ;; Buffer / Vterm digits (hidden from which-key)
   "b r" '(my/switch-to-other-buffer :which-key "previous buffer")
-  "b #" '(my/buffer-by-index-prompt :which-key "buffer by number")
-  ;; SPC v prefix — extend with more vterm bindings as needed
-  "v #" '(my/vterm-by-index-prompt :which-key "vterm by number"))
+  "b 0" '(my/buffer-goto :which-key " ")
+  "b 1" '(my/buffer-goto :which-key " ")
+  "b 2" '(my/buffer-goto :which-key " ")
+  "b 3" '(my/buffer-goto :which-key " ")
+  "b 4" '(my/buffer-goto :which-key " ")
+  "b 5" '(my/buffer-goto :which-key " ")
+  "b 6" '(my/buffer-goto :which-key " ")
+  "b 7" '(my/buffer-goto :which-key " ")
+  "b 8" '(my/buffer-goto :which-key " ")
+  "b 9" '(my/buffer-goto :which-key " ")
+  "v 0" '(my/vterm-goto :which-key " ")
+  "v 1" '(my/vterm-goto :which-key " ")
+  "v 2" '(my/vterm-goto :which-key " ")
+  "v 3" '(my/vterm-goto :which-key " ")
+  "v 4" '(my/vterm-goto :which-key " ")
+  "v 5" '(my/vterm-goto :which-key " ")
+  "v 6" '(my/vterm-goto :which-key " ")
+  "v 7" '(my/vterm-goto :which-key " ")
+  "v 8" '(my/vterm-goto :which-key " ")
+  "v 9" '(my/vterm-goto :which-key " "))
 
 (provide 'keybinds)
 ;; keybinds.el ends here
