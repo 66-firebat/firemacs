@@ -62,6 +62,7 @@ Maps 12.5%% bands to glyphs, like a scrollbar thumb."
     (concat
      (doom-modeline-spc)
      (doom-modeline--buffer-name)
+     " "
      (doom-modeline--buffer-state-icon)))
 
   ;; Define a custom segment for percentage, then redefine the
