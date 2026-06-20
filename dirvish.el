@@ -107,6 +107,8 @@
   (dirvish-use-header-line t)
   (dirvish-header-line-format
    '(:left (path) :right (free-space)))
+  ;; Path separator icons: [home-icon, root-icon, separator]
+  (dirvish-path-separators '(" 󰟒 " " 󰠠 " " 󰁔 "))
 
   ;; ── File Details ────────────────────────────────────────────────
   ;; Hide file details by default (show only names). Toggle with '('.
