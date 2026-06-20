@@ -167,18 +167,5 @@
   (define-key dirvish-mode-map (kbd "M-b") 'dirvish-history-go-backward)
   (define-key dirvish-mode-map (kbd "M-e") 'dirvish-emerge-menu))
 
-;; ---------------------------------------------------------------------------
-;;  Keybindings (global leader key)
-;; ---------------------------------------------------------------------------
-
-;; SPC d d → Dirvish (full-frame file manager with preview)
-;; SPC d s → Dirvish side (sidebar file tree)
-;; SPC d f → Dirvish fd (async file search via fd)
-(leader
-  "d d" '(dirvish :which-key "dirvish")
-  "d s" '(dirvish-side :which-key "dirvish sidebar")
-  "d f" '(dirvish-fd :which-key "dirvish fd search")
-  "d D" '(dirvish-dispatch :which-key "dirvish dispatch"))
-
 (provide 'dirvish)
 ;; dirvish.el ends here

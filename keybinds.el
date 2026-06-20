@@ -244,6 +244,13 @@ Sorted numerically."
   "t w" '(whitespace-mode :which-key "toggle whitespace")
   "t t" '(my/vterm-new :which-key "new vterm")
 
+  ;; Dirvish
+  "d d" '(dirvish :which-key "dirvish")
+  "d s" '(dirvish-side :which-key "dirvish sidebar")
+  "d f" '(dirvish-fd :which-key "dirvish fd search")
+  "d D" '(dirvish-dispatch :which-key "dirvish dispatch")
+  "d q" '(dirvish-quit :which-key "quit dirvish")
+
   ;; Docs
   "d f" '(describe-function :which-key "describe function")
   "d v" '(describe-variable :which-key "describe variable")

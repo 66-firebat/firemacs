@@ -58,7 +58,7 @@ Background: #2b2b2b  Accent: #ff4400")
  `(vertical-border ((t (:foreground ,firebat-comment))))
  `(line-number ((t (:foreground ,firebat-region))))
  `(line-number-current ((t (:foreground ,firebat-string :background ,firebat-hl))))
- `(header-line ((t (:background ,firebat-hl :foreground ,firebat-fg-alt))))
+ `(header-line ((t (:background ,firebat-bg :foreground ,firebat-fg-alt))))
  `(highlight ((t (:background ,firebat-hl :foreground ,firebat-accent))))
  `(match ((t (:background ,firebat-insert-bg :foreground ,firebat-fg))))
  `(shadow ((t (:foreground ,firebat-comment))))
@@ -267,7 +267,7 @@ Background: #2b2b2b  Accent: #ff4400")
  `(rainbow-delimiters-unmatched-face ((t (:foreground ,firebat-accent :weight bold :underline t))))
 
  ;; ═══════════════════════════════════════════════════════════════
- ;;  Dired
+ ;;  Dired / Dirvish
  ;; ═══════════════════════════════════════════════════════════════
 
  `(dired-directory ((t (:foreground ,firebat-accent :weight bold))))
@@ -277,7 +277,11 @@ Background: #2b2b2b  Accent: #ff4400")
  `(dired-marked ((t (:foreground ,firebat-accent-alt))))
  `(dired-symlink ((t (:foreground ,firebat-string))))
  `(dired-broken-symlink ((t (:foreground ,firebat-accent))))
- `(dired-ignored ((t (:foreground ,firebat-comment)))))
+ `(dired-ignored ((t (:foreground ,firebat-comment))))
+ ;; Dirvish current-line highlight — use main bg color, not the
+ ;; dark-orange inherited from `highlight`.
+ `(dirvish-hl-line ((t (:background ,firebat-bg :foreground ,firebat-accent :extend t))))
+ `(dirvish-hl-line-inactive ((t (:background ,firebat-bg :extend t)))))
 
 ;; ── Provide ─────────────────────────────────────────────────────
 
