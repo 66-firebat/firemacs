@@ -7,9 +7,8 @@
 ;;  Requires: (emacsPackages.vterm) in configuration.nix
 ;;
 ;;  Design choices:
-;;    - Insert-by-default: vterm starts and stays in evil INSERT state
-;;    - ESC returns to normal state for buffer navigation
-;;    - Switching to vterm auto-enters insert mode
+;;    - Normal-by-default: vterm starts in evil NORMAL state
+;;    - `i` enters insert state; ESC returns to normal state
 ;;    - Shell integration enabled for directory tracking
 ;; =============================================================================
 
@@ -19,20 +18,26 @@
 ;; M-x vterm (and SPC t t) appear as available commands.
 (require 'vterm-autoloads)
 
-;; ── Initial state: insert-by-default ────────────────────────────
-;; New vterms start in insert state so you can type immediately.
-;; Switching to a vterm buffer (any method) also forces insert mode.
-(evil-set-initial-state 'vterm-mode 'insert)
+;; ── Initial state: normal-by-default ────────────────────────────
+;; New vterms start in normal state. Press `i` to enter insert mode.
+(evil-set-initial-state 'vterm-mode 'normal)
 
 ;; ── Evil keybindings ───────────────────────────────────────────
 ;; All handled by evil-collection — uses insert state so
 ;; i/a/A/I enter insert mode, ESC returns to normal state.
 ;; See evil-collection-vterm.el in the elpa directory.
 
+;; ── Unbind C-b in vterm insert state ──────────────────────
+;; evil-collection binds C-b to vterm--self-insert (pass to
+;; terminal). We unbind it so C-b can reach the global
+;; consult-buffer binding instead.
+(add-hook 'vterm-mode-hook
+          (lambda ()
+            (evil-define-key* 'insert vterm-mode-map (kbd "C-b") nil)))
+
 ;; ── Auto-insert helper ──────────────────────────────────────────
 ;; Used via :after advice on specific buffer-switching commands.
-;; See keybinds.el for the advices on centaur-tabs-forward,
-;; centaur-tabs-backward, and my/switch-to-other-buffer.
+;; Currently advised on: my/switch-to-other-buffer (SPC b r).
 (defun my/vterm-enter-insert-after-switch (&rest _)
   "After switching to a vterm buffer, enter insert state."
   (when (and (derived-mode-p 'vterm-mode)

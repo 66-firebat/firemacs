@@ -7,13 +7,18 @@
 ;;  The `leader` key is defined in init.el (general-create-definer).
 ;; =============================================================================
 
-;; ── Window navigation (normal mode) ────────────────────────────
-;; Ctrl + hjkl to move between windows, like Vim
-(general-def '(normal insert)
-  "C-h" 'evil-window-left
-  "C-j" 'evil-window-down
-  "C-k" 'evil-window-up
-  "C-l" 'evil-window-right)
+;; ── Tab navigation (all modes) ──────────────────────────────
+;; C-h / C-l to switch tabs via centaur-tabs.
+;; Window navigation uses Evil's built-in C-w h/j/k/l.
+(general-def '(normal insert visual)
+  "C-h" 'centaur-tabs-backward
+  "C-l" 'centaur-tabs-forward)
+
+;; ── Quick buffer switch ──────────────────────────────────
+;; Opens consult-buffer (includes vterm source).
+;; Replaces evil-scroll-page-up in normal state.
+(general-def '(normal insert visual)
+  "C-b" 'consult-buffer)
 
 ;; ── Line motion (normal mode) ────────────────────────────────
 ;; Capital L/H for end/start of line (like $ and 0 in Vim).
@@ -191,8 +196,6 @@ Sorted numerically."
 ;; ═════════════════════════════════════════════════════════════════
 
 (leader
-  ;; Files
-  "SPC" '(consult-buffer :which-key "switch buffer")
   "f f" '(find-file :which-key "find file")
   "f r" '(consult-recent-file :which-key "recent files")
   "f s" '(save-buffer :which-key "save buffer")
@@ -301,7 +304,7 @@ Sorted numerically."
 ;; These three commands are the main buffer-switching paths that can
 ;; land on a vterm buffer in the same window.  The advice checks
 ;; after each command and enters insert mode if needed.
-(dolist (cmd '(centaur-tabs-backward centaur-tabs-forward my/switch-to-other-buffer))
+(dolist (cmd '(my/switch-to-other-buffer))
   (advice-add cmd :after #'my/vterm-enter-insert-after-switch))
 
 (provide 'keybinds)
