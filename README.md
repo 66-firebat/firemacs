@@ -1,214 +1,181 @@
-# Emacs Configuration — Minimal + Evil + Doom Modeline
+# 🔥 Emacs Configuration — Firebat Edition
 
-A clean, minimalist Emacs configuration built for **terminal (-nw) use** with Vim emulation at its core. Designed for daily driving in the terminal with a cohesive dark theme, modern minibuffer completion, Git integration, and AI-assisted coding.
+A clean, terminal-first Emacs config with **Evil** (Vim emulation), **Eat** terminal, **Doom Modeline**, **Centaur Tabs**, and **Pi** AI coding agent. Designed for the `firebat` theme (`#2b2b2b` background, `#ff4400` accent).
 
-**Author:** `fireshark`  
-**Palette:** `#2b2b2b` background, `#ff4400` accent  
-**Starting:** `emacs -nw` (or set as your `EDITOR`)
+**Author:** `fireshark`
+**Launch:** `emacs -nw`
+
+---
+
+## ⚠️ TODO — Known Issues & Missing Features
+
+- [ ] **Comment toggling** — No keybinding exists for `comment-dwim` / `comment-line`. Needs a binding like `SPC ;` or `gc` (Evil standard). See [Issue: No Comment Keybinding](#).
+- [ ] **Duplicated `eat.el` load** — `init.el` loads `eat.el` twice (sections 13b and 13i). The second load is a no-op but should be cleaned up.
+- [ ] **`SPC d` prefix collision** — `SPC d d` is `my/dired-from-eat` and `SPC d f` / `SPC d v` / etc. are help/docs. This means `SPC d f` and friends are ambiguous; Dired-related bindings under `SPC d` conflict with help bindings under the same prefix. Consider moving dired to `SPC d` and docs to `SPC h`, or vice versa.
+- [ ] **Stale `dirvish` reference in old README** — Dirvish was removed; the config now uses plain Dired with `my/dired-from-eat`.
+- [ ] **`wl-clipboard.el` Wayland-only** — No graceful fallback for X11/macOS. The clipboard integration silently does nothing on non-Wayland sessions.
+- [ ] **No `rainbow-delimiters` package actually installed** — The theme defines faces for it, but `rainbow-delimiters` is not listed in `init.el` via `use-package`. Faces are dead code.
+- [ ] **`SPC SPC` is `consult-buffer`** — This overrides the common "M-x / execute-command" expectation on double-SPC. Consider `SPC SPC` → `M-x` or document the choice.
+- [ ] **No `project` `consult-project` source** — `consult-buffer` could include project buffers as a source.
+- [ ] **No file-explorer tree (neotree/treemacs)** — Dired is the only file navigation. Consider adding `treemacs` or `neotree` for sidebar browsing.
 
 ---
 
 ## Table of Contents
 
-1. [Architecture Overview](#architecture-overview)
+1. [Packages & Dependencies](#packages--dependencies)
 2. [File-by-File Reference](#file-by-file-reference)
-   - [init.el](#initel)
-   - [theme.el](#themeel)
-   - [keybinds.el](#keybindsel)
-   - [statuscolumn.el](#statuscolumnel)
-   - [doom-modeline.el](#doom-modelineel)
-   - [centaur-tabs.el](#centaur-tabsel)
-   - [diff-hl.el](#diff-hlel)
-   - [dirvish.el](#dirvishel)
-   - [consult-buffer.el](#consult-bufferel)
-   - [vterm.el](#vtermel)
-   - [panes.el](#panesel)
-   - [pi.el](#piel)
 3. [Complete Keybinding Table](#complete-keybinding-table)
+4. [Theme Reference](#theme-reference)
+5. [Quick Start](#quick-start)
 
 ---
 
-## Architecture Overview
+## Packages & Dependencies
 
-This config is designed as a **collection of self-contained `.el` files** in a single directory, each responsible for one component. `init.el` orchestrates everything by `require`-ing built-in packages and `load`-ing each custom file by its full path.
+### Core (autoloaded or demand-loaded)
 
-| Layer | Packages |
+| Package | Role | Load Strategy |
+|---|---|---|
+| **evil** | Vim emulation core | `:demand t` |
+| **evil-collection** | Vim keybindings for every mode | `:demand t`, after evil |
+| **general** | Leader key definer (SPC / C-SPC) | `:demand t` |
+| **vertico** | Vertical minibuffer completion | `:demand t` |
+| **marginalia** | Completion candidate annotations | `:demand t` |
+| **consult** | Powerful search & navigation (consult-line, consult-grep, etc.) | `:demand t` |
+| **which-key** | Show available keybindings on prefix keys | `:demand t` |
+| **doom-modeline** | Informative mode line with Nerd Font icons | `:demand t` |
+| **nerd-icons** | Nerd Font icon provider | `:commands nerd-icons-install-fonts` |
+| **centaur-tabs** | Aesthetic tab bar at top of frame | `:demand t` |
+| **eat** | Terminal emulator (replaces vterm) | Configured via custom `eat.el` |
+
+### Deferred (loaded on demand)
+
+| Package | Role | Trigger |
+|---|---|---|
+| **magit** | Git porcelain | `:defer t` |
+| **diff-hl** | Uncommitted change indicators | Hook + global mode |
+| **eglot** | LSP client (built-in Emacs 29+) | `:defer t` |
+| **org** | Notes, TODOs, Agenda | `:defer t` |
+| **avy** | Visual character jump | `:defer t` |
+| **project** | Project management (built-in) | `:defer t` |
+| **julia-mode** | Julia language support | `:defer t`, auto via `.jl` |
+| **python** | Python language support (built-in) | `:defer t`, auto via `.py` |
+| **treesit** | Tree-sitter syntax highlighting (built-in Emacs 30) | `:demand t`, `:ensure nil` |
+| **pi-coding-agent** | Pi AI coding agent frontend | `:defer t` |
+
+### Custom Modules (local `.el` files)
+
+| File | Role |
 |---|---|
-| **Vim emulation** | evil + evil-collection |
-| **Leader key** | general (SPC / C-SPC) |
-| **Completion** | vertico + marginalia + consult |
-| **Git** | magit + diff-hl |
-| **AI Coding Agent** | pi-coding-agent |
-| **LSP** | eglot (built-in) |
-| **File manager** | dirvish (dired replacement) |
-| **Tabs** | centaur-tabs |
-| **Modeline** | doom-modeline |
-| **Terminal** | vterm (libvterm bindings) |
-| **Navigation** | avy |
-| **Notes** | org-mode |
-| **Key discovery** | which-key |
+| `theme.el` | Firebat custom theme definition |
+| `statuscolumn.el` | Visual line numbers with `┃`/`┣` separators |
+| `doom-modeline.el` | Custom modeline segments (percentage glyph, buffer-info) |
+| `centaur-tabs.el` | Tab bar with group labels, git branch info, custom labels |
+| `diff-hl.el` | Change indicator icons in left margin |
+| `eat.el` | Terminal emulator with statuscolumn-aware width calculation |
+| `consult-buffer.el` | Custom consult-buffer source (Eat terminal spawning) |
+| `keybinds.el` | ALL custom keybindings (leader, normal mode, Pi buffers) |
+| `panes.el` | Window divider glyph (`┼` instead of `\|`) |
+| `pi.el` | Pi coding agent integration, vertical split layout |
+| `wl-clipboard.el` | Wayland clipboard bridge (wl-copy / wl-paste) |
 
-### Dependency Graph
+### Optional External Dependencies
 
-```
-init.el
- ├── doom-modeline.el        (doom-modeline + nerd-icons)
- ├── statuscolumn.el         (custom visual-line-number overlays)
- ├── vterm.el                (emacs-libvterm config)
- ├── diff-hl.el              (uncommitted change indicators)
- ├── keybinds.el             (ALL leader and normal keybindings)
- ├── consult-buffer.el       (custom consult sources, depends on keybinds.el functions)
- ├── panes.el                (vertical border glyph)
- ├── centaur-tabs.el         (tab bar with group labels)
- ├── dirvish.el              (modern file manager)
- ├── pi.el                   (Pi coding agent integration)
- └── theme.el                (firebat theme definition)
-```
+- **Nerd Font** (e.g., `Symbols Nerd Font Mono`) — required for mode-line, diff-hl, and centaur-tabs icons
+- **Julia LanguageServer.jl** — for LSP in Julia buffers: `using Pkg; Pkg.add("LanguageServer")`
+- **Pi CLI** — for AI coding agent: `npm install -g @earendil-works/pi-coding-agent`
+- **wl-clipboard** (system package) — for Wayland clipboard in terminal: `wl-copy` + `wl-paste`
 
 ---
 
 ## File-by-File Reference
 
-### `init.el`
+### `init.el` — Bootstrap & Orchestration
 
-**Role:** Bootstrap and orchestration.
+The entry point. Sets up:
 
-This is the entry point. It:
+1. **Package management** — MELPA repository, `use-package` with `:ensure t`
+2. **Sane defaults** — Disables GUI bars, `show-paren-mode`, `global-auto-revert-mode`, `save-place-mode`, `recentf-mode`, trailing whitespace cleanup on save, dedicated backup/auto-save dirs, symlink following, bell silencing
+3. **Evil + evil-collection** — Vim emulation everywhere
+4. **general** — SPC leader key (actual bindings in `keybinds.el`)
+5. **which-key** — Available binding popup after 0.5s
+6. **Custom file loading** — Each `.el` file loaded via `(load (expand-file-name "file.el" real-dir))` relative to config directory
+7. **Language support** — Julia & Python with Eglot (LSP) and Tree-sitter (syntax highlighting)
+8. **Org mode** — Capture templates, TODO keywords, agenda setup
+9. **Avy** — Visual character jumping
+10. **Pi coding agent** — AI-assisted coding
+11. **wl-clipboard** — Wayland clipboard integration
+12. **Firebat theme** — Load and enable
 
-1. Configures **package management** (MELPA, `use-package` with `:ensure t`)
-2. Sets **sane defaults** — disables GUI bars, enables `show-paren-mode`, `global-auto-revert-mode`, `save-place-mode`, `recentf-mode`, deletes trailing whitespace on save, remaps backups to `~/.emacs.d/backups/`
-3. Loads **evil** and **evil-collection** — Vim emulation everywhere
-4. Sets up **general** for the SPC leader key (delegates actual bindings to `keybinds.el`)
-5. Loads **which-key** to show available bindings after a 0.5s delay
-6. Loads each custom `.el` file via `(load (expand-file-name "file.el" real-dir))` — note the `load` pattern that resolves the file relative to the config directory
-7. Provides **language support** for Julia and Python via `eglot` (LSP) and `treesit` (tree-sitter syntax highlighting)
-8. Configures **Org mode** with capture templates, TODO keywords, and agenda files
-9. Sets up **Avy** for visual character jumping
-10. Loads and enables the **firebat theme**
-
-**Key settings:**
+Key settings:
 - `evil-want-keybinding nil` — delegates keybinding setup to evil-collection
 - `evil-undo-system 'undo-redo` — modern undo-redo (Emacs 28+)
-- `gc-cons-threshold` bumped to 100 MB during startup, reset to 800 KB after
-- `eglot-autoshutdown t` — kill LSP when last buffer closes
+- `gc-cons-threshold` — 100MB during startup, 800KB after
+- `eglot-autoshutdown t` — kill LSP server when last buffer closes
+- `delete-trailing-whitespace` — on `before-save-hook`
 
----
+### `theme.el` — Firebat Theme
 
-### `theme.el`
-
-**Role:** Full custom theme definition — the **firebat** theme.
-
-A terminal-optimised dark theme with a consistent 7-stop gradient:
+Full custom `deftheme` with a 7-stop gradient palette:
 
 ```
 #ff4400  →  #da4007  →  #bf3d0c  →  #913716  →  #603120  →  #462e25  →  #2b2b2b
-(bright accent)                                          (selection)    (bg)
+(accent)                                              (selection)    (bg)
 ```
 
-Defines faces for **every component** in the config:
+Faces defined for: Core UI, syntax highlighting, mode-line, Evil search, Vertico/Corfu, Consult, Magit, Org, Doom Modeline, Eat terminal ANSI, Statuscolumn, Diff-hl, Centaur Tabs, Which-key, Avy, Flymake/Eglot diagnostics, Rainbow Delimiters, Dired.
 
-| Face Group | What's Covered |
-|---|---|
-| Core UI | `default`, `cursor`, `region`, `hl-line`, `show-paren`, `minibuffer-prompt`, `vertical-border`, `line-number`, `header-line`, `match`, `link` |
-| Syntax | `font-lock-*` — keywords, functions, types, strings, comments, etc. |
-| Mode Line | `mode-line`, `mode-line-inactive`, `mode-line-highlight` |
-| Evil | search highlights, ex-substitute matches |
-| Vertico/Corfu | completion UI faces |
-| Consult | preview lines, matches, file/bookmark colours |
-| Magit | branches, diffs, section headings, log graph |
-| Org | heading levels, TODOs, blocks, tables, links |
-| Doom Modeline | modified, major-mode, bar, panel, project dir |
-| Terminal | `term-*` ANSI colour map |
-| Statuscolumn | `sc-line-number`, `sc-separator`, `sc-bump` |
-| Diff-hl | margin insert/delete/change icons |
-| Centaur Tabs | selected/unselected tabs, group label, modified markers, active bar |
-| Which-key | key, group, command, separator, note faces |
-| Avy | lead faces (1-character and 2-character highlight) |
-| Flymake/Eglot | squiggly underline colours for errors/warnings/notes |
-| Rainbow Delimiters | 8 depth levels + unmatched |
-| Dired/Dirvish | directories, headers, symlinks, marks, `dirvish-hl-line` |
+### `keybinds.el` — All Custom Keybindings
 
-The theme is `deftheme`-based, loaded with `(enable-theme 'firebat)` in `init.el`. All faces can be overridden with `custom-theme-set-faces`.
+The single source of truth for every non-trivial keybinding. Uses the `leader` definer from `general.el`:
 
----
+- **Normal/Visual/Motion states:** `SPC` is the prefix
+- **Insert/Emacs states:** `C-SPC` is the prefix (so SPC still inserts a space)
 
-### `keybinds.el`
+Also defines normal-mode overrides for tab navigation, buffer switching, line motion, and Avy jumping, plus Pi buffer keybindings.
 
-**Role:** Central registry of **all custom keybindings**.
+**Utility functions defined:**
+- `my/eat-new` — spawn Eat terminal at lowest available index
+- `my/switch-to-other-buffer` — toggle A ↔ B buffers
+- `my/buffer-goto` — jump to buffer by index number (interactive completing-read)
+- `my/eat-goto` — jump to/spawn Eat terminal by index
+- `my/dired-from-eat` — open Dired in the Eat terminal's current working directory
+- `my/eat-spawn-at-index` — spawn Eat at a specific index
+- `my/filtered-buffer-list` — buffer list excluding `*scratch*` and `*Messages*`
 
-Uses the `leader` definer from `init.el` (based on `general.el`) which maps:
+### `statuscolumn.el` — Visual Line Numbers
 
-- `SPC` as prefix in **normal / visual / motion** states
-- `C-SPC` as prefix in **insert / emacs** states (so SPC still inserts a space)
+Uses Emacs' C display engine (`display-line-numbers` + `line-prefix` + `wrap-prefix`) for zero-flicker line numbering with a visual separator:
 
-Additionally defines normal-mode bindings for window navigation, line motion, and Avy.
+- Most lines: `  NN ┃`
+- Current line: `  NN ┣`
 
-**⚠️ Note:** The `SPC d f` binding is used for **both** `dirvish-fd` and `describe-function` — the latter will shadow the former in practice since it's defined second. Dirvish' own mode-map overrides this inside dirvish buffers.
+A single overlay on the cursor line handles the `┣` bump. Everything else is handled by the C engine. Works in ALL modes including Eat, GUI, and TTY.
 
-Also defines several utility functions:
-- `my/vterm-new` — spawns a vterm at the lowest available index
-- `my/switch-to-other-buffer` — toggles between two most recent buffers
-- `my/buffer-goto` — jump to a buffer by index number (typed interactively)
-- `my/vterm-goto` — jump to or spawn a vterm by index number
+### `doom-modeline.el` — Custom Modeline Segments
 
-**Pi keybindings** are defined in separate `with-eval-after-load` blocks for the `pi-coding-agent-input-mode-map` and `pi-coding-agent-chat-mode-map`.
+- **Custom percentage** — 8-level Nerd Font scrollbar glyph (󰰗 → 󰪥) instead of numeric percentage
+- **Custom buffer-info** — buffer name + state icon (modified/read-only), no mode icon
+- **Modeline layout** — Left: `eldoc bar window-state workspace-name window-number modals matches follow <percent> <buffer-info> remote-host`; Right: `compilation misc-info project-name ... check time`
 
-See the [Complete Keybinding Table](#complete-keybinding-table) below for every binding.
+### `centaur-tabs.el` — Tab Bar with Group Labels
 
----
+- **Group name segment** — prepended to tab bar, shows ` branch:hash` for project groups, or icon + name for others ( Elisp,  Magit,  Shell,  Dired,  Org)
+- **Custom tab labels** — Active: `█ filename `, Inactive: ` filename `; modified files get `󱍸` prefix
+- **Git branch cache** — branch:hash cached per project, invalidated on buffer switch
+- **Style** — "bar" style, underline active bar, height 24
 
-### `statuscolumn.el`
+### `eat.el` — Terminal Emulator
 
-**Role:** Custom visual line-number column using overlays.
+- **Shell integration** — OSC 7 directory tracking (updates `default-directory` on `cd`)
+- **Statuscolumn-aware** — custom `window-adjust-process-window-size-function` subtracts 2 characters for the `┃` separator
+- **Input mode** — `semi-char` (mix of Emacs and char-mode input)
+- Replaces the vterm configuration from earlier versions
 
-Replaces the built-in `display-line-numbers-mode` with a fully custom implementation. Every **visual** (displayed) line gets a padded number and a separator character:
+### `diff-hl.el` — Change Indicators
 
-- Most lines: `  NN ┃` (separator face `sc-separator`, dim grey)
-- Current line: `  NN ┣` (bump face `sc-bump`, bold accent)
-- All visual continuation lines of the current logical line get `┣`
-
-**Features:**
-- Dynamic width — pads to fit the largest line number in the buffer (minimum 5 chars)
-- Works with wrapped lines — each visual line gets its own overlay
-- Excluded modes: `pi-coding-agent-chat-mode`, `pi-coding-agent-input-mode` (from `sc-excluded-modes`)
-- Uses `post-command-hook`, `window-scroll-functions`, and `after-change-functions` to refresh
-- Overlay-based — no `linum-mode` or `display-line-numbers-mode` interference
-- Cannot be toggled off (intentionally always-on)
-
----
-
-### `doom-modeline.el`
-
-**Role:** Customises the Doom Modeline to match the firebat aesthetic.
-
-Customises every aspect of the modeline:
-- **Custom percentage indicator** — an 8-level Nerd Font scrollbar glyph (󰰗 → 󰪥) instead of a numeric percentage, placed before the buffer name
-- **Custom buffer-info segment** — shows buffer name + state icon (modified, read-only) without the mode icon (you already know what mode you're in)
-- **Redefined main modeline** — left side: `eldoc bar window-state workspace-name window-number modals matches follow <percent> <buffer-info> remote-host`; right side: `compilation objed-state misc-info project-name persp-name battery… check time`
-- Nerd Font icons required — uses `nerd-icons` package
-
----
-
-### `centaur-tabs.el`
-
-**Role:** Aesthetic tab bar with group labels and git status.
-
-Provides a modern tab bar at the top of each frame. Key customisations:
-- **Group name segment** — prepended to the tab bar, shows  `<branch>:<hash>` for project groups, or an icon + group name for others ( Elisp,  Magit,  Shell,  Dired,  Org)
-- **Custom tab labels** — active tabs get `█ filename ` (with inverted bar-style highlight), inactive tabs get ` filename `; modified files get a 󱍸 prefix
-- **Git branch cache** — branch:hash info is cached per project path and invalidated on buffer switch
-- **Styling** — "bar" style (clean in terminal), underline active bar, height 24, no close buttons, no left/right margins
-- **Group face** — `my/centaur-tabs-group-face` (accent foreground, bg background)
-- Hides tabs in `help-mode` and `apropos-mode`
-- Tab cycling via `M-<tab>`, `C-<tab>`, `C-S-<iso-lefttab>`
-
----
-
-### `diff-hl.el`
-
-**Role:** Visual change indicators in the left margin.
-
-Highlights uncommitted changes (insertions, deletions, modifications) in file-visiting buffers using Nerd Font icons:
+Nerd Font icons in the left margin:
 
 | Change | Icon |
 |---|---|
@@ -218,161 +185,113 @@ Highlights uncommitted changes (insertions, deletions, modifications) in file-vi
 | Unknown | ` ┆` |
 | Ignored | ` i` |
 
-**Integration:**
-- Global `diff-hl-mode` in all file buffers
-- `diff-hl-dired-mode` in dired buffers (shows changed files)
-- `diff-hl-flydiff-mode` — updates indicators as you type (not just on save)
-- `diff-hl-margin-mode` — uses a 2-character wide left margin
-- Magit integration — refreshes after commit/push/pull via `magit-post-refresh-hook`
+Features: global mode in all file buffers, Dired integration, `flydiff` for live-updating, Magit post-refresh hook.
 
----
+### `consult-buffer.el` — Custom Buffers
 
-### `dirvish.el`
+Adds an **Eat terminal source** to `consult-buffer` (which is bound to both `C-b` and `SPC SPC`):
 
-**Role:** Modern file manager replacing Dired.
+- Existing Eat buffers appear as completions
+- Typing a number spawns a new Eat at that index (e.g., typing `5` → Eat index 5)
+- Marked `:default t` and prepended so it's checked first
 
-Dirvish enhances Emacs' built-in Dired with file previews, multiple layouts, VC integration, and a polished UI. It's inspired by ranger.
+### `panes.el` — Window Dividers
 
-**Layout:** `'(0 0.11 0.55)` — 2-panel layout (file listing | preview pane), no parent directory windows.
+- Replaces vertical border `|` with `┼` (U+253C) via display table
+- Also pushes the wrap glyph (continuation line) to `·` (U+00B7) in `shadow` face
+- Hooks into `eat-mode-hook` to re-apply in terminal buffers (which have their own display tables)
 
-**Features enabled:**
-- File attributes inline: `file-size`, `subtree-state`, `collapse`
-- Mode line with sort/symlink info on left, omit/index on right
-- Header line with path + free space
-- Quick-access entries for `~/`, `~/Downloads/`, config modules, `/mnt/`
-- File preview dispatchers for images, video, audio, PDF, EPUB, archives, fonts
-- Async directory opening via `fd` for directories > 20,000 files
-- Renamed `dired-mode` keybindings (?, a, f, o, s, r, l, v, y, *, N, ^, TAB, M-f, M-b, M-e)
+### `pi.el` — Pi AI Coding Agent
 
-**Dired base settings:** `-l --almost-all --human-readable --group-directories-first --no-group` listing switches, trash-based deletion, mouse drag-and-drop.
+- **Convenience alias** — `M-x pi` starts/focuses Pi
+- **Vertical split layout** — overrides default horizontal layout: input on left, chat on right (50/50)
+- **Dedicated Pi frame** — `SPC p i f` opens Pi in its own frame
+- **Activity phase hooks** — minibuffer messages for "thinking", "replying", "running", "idle"
 
----
+### `wl-clipboard.el` — Wayland Clipboard
 
-### `consult-buffer.el`
+Only activates when all three conditions are met:
+1. `window-system` is nil (terminal mode)
+2. `XDG_SESSION_TYPE` is `wayland`
+3. `wl-copy` and `wl-paste` are in PATH
 
-**Role:** Custom `consult-buffer` sources.
-
-Currently defines one custom source — **VTerm source**:
-
-- Adds vterm buffers as candidates in `SPC SPC` (`consult-buffer`)
-- Typing a number spawns a new vterm at that index (e.g., typing `5` creates vterm index 5)
-- Existing vterm buffers appear as selectable candidates
-- Marked as `:default t` and prepended to `consult-buffer-sources` so it's checked first before creating a regular buffer
-
-Depends on `my/vterm-spawn-at-index` and `my/vterm-buffer-list` from `keybinds.el`.
-
----
-
-### `vterm.el`
-
-**Role:** Terminal emulator configuration (emacs-libvterm).
-
-- Vim-by-default — starts in evil **NORMAL** state; `i` enters insert state
-- **Cursor snap** — advises `evil-collection-vterm-insert` and `-insert-line` to send a space+backspace to the terminal, forcing the cursor to snap to the correct position visually
-- **Shell integration** — directory tracking via the `etc/emacs-vterm-bash.sh` script, sourced in `.bashrc`
-- Loaded via `require 'vterm-autoloads` because it's installed via NixOS, not MELPA
-
----
-
-### `panes.el`
-
-**Role:** Window divider aesthetics in terminal mode.
-
-Replaces the default `|` vertical border character with `┼` (Unicode U+253C) using the display table. Also hooks into `vterm-mode-hook` to re-apply the glyph in vterm buffers (which set their own buffer-local display table).
-
----
-
-### `pi.el`
-
-**Role:** Integration with the Pi Coding Agent CLI.
-
-Provides an Emacs frontend for [Pi](https://pi.dev) — an AI coding agent. Key features:
-
-- **Convenience alias** — `M-x pi` starts/focuses Pi (alias for `pi-coding-agent`)
-- **Vertical split layout** — overrides the default horizontal layout so the chat occupies the left pane and the prompt/composition buffer is on the right (50/50 split)
-- **Dedicated Pi frame** — `my/pi-frame` opens Pi in its own Emacs frame
-- **Activity phase hooks** — minibuffer messages for "thinking"/"replying"/"running"/"idle" transitions
-- **Customisable settings** — input window height, preview lines, RPC timeout, context thresholds, Markdown highlighting in input buffer, pipe table prettification
-
-**Input buffer keybindings:**
-- `M-RET` / `S-RET` / `C-c C-c` — send prompt
-- `C-c C-s` — queue steering message
-- `C-c C-k` — abort streaming
-- `C-c C-p` — transient menu
-- `C-c C-r` — resume session
-
-**Chat buffer keybindings:**
-- `q` — quit session (normal mode)
+Uses persistent `wl-copy` process with `-f` flag (required by Wayland's clipboard model).
 
 ---
 
 ## Complete Keybinding Table
 
-### Normal Mode — Window Navigation
+### Global Keybindings (all modes)
 
 | Key | Command | Description |
 |---|---|---|
-| `C-h` | `evil-window-left` | Move focus to left window |
-| `C-j` | `evil-window-down` | Move focus to window below |
-| `C-k` | `evil-window-up` | Move focus to window above |
-| `C-l` | `evil-window-right` | Move focus to right window |
+| `C-h` | `centaur-tabs-backward` | Previous tab |
+| `C-l` | `centaur-tabs-forward` | Next tab |
+| `C-b` | `consult-buffer` | Switch buffer (with Eat source) |
+| `M-y` | `consult-yank-pop` | Browse kill-ring |
+| `C-x b` | `consult-buffer` | Switch buffer |
+| `M-s g` | `consult-grep` | Grep search |
+| `M-s l` | `consult-line` | Search in current buffer |
+| `M-s r` | `consult-ripgrep` | Ripgrep search |
+| `M-s f` | `consult-find` | Find file by name |
+| `C-<tab>` | `centaur-tabs-forward` | Next tab |
+| `M-<tab>` | `centaur-tabs-forward` | Next tab |
+| `C-S-<iso-lefttab>` | `centaur-tabs-backward` | Previous tab |
 
 ### Normal Mode — Line Motion
 
 | Key | Command | Description |
 |---|---|---|
-| `H` | `evil-first-non-blank` | Jump to first non-whitespace character on line |
-| `L` | `evil-last-non-blank` | Jump to last non-whitespace character on line |
-
-**Applicable states:** `normal`, `visual`, `visual-block`, `visual-line`
+| `H` | `evil-first-non-blank` | Jump to first non-whitespace on line |
+| `L` | `evil-last-non-blank` | Jump to last non-whitespace on line |
 
 ### Normal Mode — Avy (Visual Jumping)
 
 | Key | Command | Description |
 |---|---|---|
-| `s` | `avy-goto-word-1` | Jump to word starting with a typed character |
-| `S` | `avy-goto-char-2` | Jump to exact two-character sequence |
+| `s` | `avy-goto-word-1` | Jump to word starting with typed character |
+| `S` | `avy-goto-char-2` | Jump to exact 2-character sequence |
 | `g s` | `avy-goto-line` | Jump to a visible line number |
 
 ### SPC Leader Keybindings
 
-The leader key is `SPC` in normal/visual/motion states, `C-SPC` in insert/emacs states.
+> `SPC` in normal/visual/motion states
+> `C-SPC` in insert/emacs states
 
 #### Files (`SPC f`)
 
-| Key Sequence | Command | Description |
+| Sequence | Command | Description |
 |---|---|---|
-| `SPC SPC` | `consult-buffer` | Switch buffer (with vterm & file sources) |
-| `SPC f f` | `find-file` | Open a file |
-| `SPC f r` | `consult-recent-file` | Browse recently opened files |
+| `SPC SPC` | `consult-buffer` | Switch buffer (with Eat terminal source) |
+| `SPC f f` | `find-file` | Open file |
+| `SPC f r` | `consult-recent-file` | Browse recent files |
 | `SPC f s` | `save-buffer` | Save current buffer |
-| `SPC f o` | `other-frame` | Switch to another Emacs frame |
+| `SPC f o` | `other-frame` | Switch to another frame |
 
-#### Buffers (`SPC b`)
+#### Buffers (`SPC b` / `SPC k`)
 
-| Key Sequence | Command | Description |
+| Sequence | Command | Description |
 |---|---|---|
 | `SPC k k` | `my/switch-to-other-buffer` | Toggle to previous buffer (A ↔ B) |
 | `SPC b d` | `kill-current-buffer` | Kill current buffer |
 | `SPC b n` | `next-buffer` | Cycle to next buffer |
 | `SPC b p` | `previous-buffer` | Cycle to previous buffer |
-| `SPC b 0-9` | `my/buffer-goto` | Jump to buffer by index number |
 
 #### Tabs (`SPC h` / `SPC l`)
 
-| Key Sequence | Command | Description |
+| Sequence | Command | Description |
 |---|---|---|
 | `SPC h` | `centaur-tabs-backward` | Previous tab |
 | `SPC l` | `centaur-tabs-forward` | Next tab |
 
 #### Windows (`SPC w`)
 
-| Key Sequence | Command | Description |
+| Sequence | Command | Description |
 |---|---|---|
 | `SPC w v` | `evil-window-vsplit` | Vertical split |
 | `SPC w s` | `evil-window-split` | Horizontal split |
 | `SPC w d` | `evil-window-delete` | Delete current window |
-| `SPC w m` | `delete-other-windows` | Maximise current window |
+| `SPC w m` | `delete-other-windows` | Maximize window |
 | `SPC w h` | `evil-window-left` | Focus left window |
 | `SPC w j` | `evil-window-down` | Focus window below |
 | `SPC w k` | `evil-window-up` | Focus window above |
@@ -380,162 +299,178 @@ The leader key is `SPC` in normal/visual/motion states, `C-SPC` in insert/emacs 
 
 #### Project (`SPC p`)
 
-| Key Sequence | Command | Description |
+| Sequence | Command | Description |
 |---|---|---|
-| `SPC p p` | `project-switch-project` | Switch to another project |
-| `SPC p f` | `project-find-file` | Find file in current project |
-| `SPC p g` | `consult-grep` | Grep across project files |
-| `SPC p b` | `project-switch-to-buffer` | Switch to a project buffer |
+| `SPC p p` | `project-switch-project` | Switch project |
+| `SPC p f` | `project-find-file` | Find file in project |
+| `SPC p g` | `consult-grep` | Grep project files |
+| `SPC p b` | `project-switch-to-buffer` | Switch to project buffer |
 
-#### Pi Coding Agent (`SPC p i`)
+#### Pi AI Agent (`SPC p i`)
 
-| Key Sequence | Command | Description |
+> Requires Pi CLI installed: `npm install -g @earendil-works/pi-coding-agent`
+
+| Sequence | Command | Description |
 |---|---|---|
-| `SPC p i` | — | Pi prefix group (shows sub-commands) |
+| `SPC p i` | _(prefix group)_ | Show Pi sub-commands via which-key |
 | `SPC p i i` | `pi-coding-agent` | Start / focus Pi session |
-| `SPC p i f` | `my/pi-frame` | Open Pi in a dedicated frame |
-| `SPC p i t` | `pi-coding-agent-toggle` | Toggle Pi session windows |
+| `SPC p i f` | `my/pi-frame` | Pi in dedicated frame |
+| `SPC p i t` | `pi-coding-agent-toggle` | Toggle Pi windows |
 | `SPC p i s` | `pi-coding-agent-open-session-file` | Open session log file |
 | `SPC p i m` | `pi-coding-agent-select-model` | Select AI model |
 
 #### Search (`SPC s`)
 
-| Key Sequence | Command | Description |
+| Sequence | Command | Description |
 |---|---|---|
-| `SPC s s` | `consult-line` | Search within current buffer |
-| `SPC s g` | `consult-grep` | Grep search in project |
-| `SPC s r` | `consult-ripgrep` | Ripgrep search in project |
+| `SPC s s` | `consult-line` | Search in current buffer |
+| `SPC s g` | `consult-grep` | Grep search |
+| `SPC s r` | `consult-ripgrep` | Ripgrep search |
 
 #### Git / Magit (`SPC g`)
 
-| Key Sequence | Command | Description |
+| Sequence | Command | Description |
 |---|---|---|
-| `SPC g g` | `magit-status` | Magit status buffer |
+| `SPC g g` | `magit-status` | Magit status |
 | `SPC g d` | `magit-diff-unstaged` | Show unstaged diff |
-| `SPC g l` | `magit-log` | Show commit log |
-| `SPC g c` | `magit-commit` | Commit staged changes |
-| `SPC g p` | `magit-push` | Push to remote |
-| `SPC g f` | `magit-fetch` | Fetch from remote |
-| `SPC g b` | `magit-blame` | Git blame at point |
-| `SPC g [` | `diff-hl-previous-hunk` | Go to previous uncommitted hunk |
-| `SPC g ]` | `diff-hl-next-hunk` | Go to next uncommitted hunk |
+| `SPC g l` | `magit-log` | Commit log |
+| `SPC g c` | `magit-commit` | Commit |
+| `SPC g p` | `magit-push` | Push |
+| `SPC g f` | `magit-fetch` | Fetch |
+| `SPC g b` | `magit-blame` | Blame at point |
+| `SPC g [` | `diff-hl-previous-hunk` | Previous uncommitted hunk |
+| `SPC g ]` | `diff-hl-next-hunk` | Next uncommitted hunk |
 
-#### Toggle (`SPC t`)
+#### Toggle / Terminal (`SPC t`)
 
-| Key Sequence | Command | Description |
+| Sequence | Command | Description |
 |---|---|---|
-| `SPC t l` | `display-line-numbers-mode` | Toggle line numbers (redundant with statuscolumn) |
+| `SPC t l` | `display-line-numbers-mode` | Toggle line numbers |
 | `SPC t w` | `whitespace-mode` | Toggle whitespace visibility |
-| `SPC t t` | `my/vterm-new` | Spawn a new vterm at the lowest available index |
-| `SPC t p` | `pi-coding-agent-toggle` | Toggle Pi session windows |
+| `SPC t t` | `my/eat-new` | Spawn new Eat terminal |
+| `SPC t p` | `pi-coding-agent-toggle` | Toggle Pi windows |
 
-#### Dirvish (`SPC d`)
+#### Dired / Navigation (`SPC d`)
 
-| Key Sequence | Command | Description |
+| Sequence | Command | Description |
 |---|---|---|
-| `SPC d d` | `dirvish` | Open Dirvish file manager |
-| `SPC d s` | `dirvish-side` | Toggle Dirvish sidebar |
-| `SPC d f` | `dirvish-fd` | Dirvish fd search (**note:** conflicts with `describe-function` below) |
-| `SPC d D` | `dirvish-dispatch` | Dirvish cheatsheet / transient menu |
-| `SPC d q` | `dirvish-quit` | Close Dirvish session |
+| `SPC d d` | `my/dired-from-eat` | Dired from Eat's current directory |
+
+> **Note:** `SPC d f/v/k/m` are help/docs bindings (below). These share the `SPC d` prefix.
 
 #### Help / Docs (`SPC d`)
 
-| Key Sequence | Command | Description |
+| Sequence | Command | Description |
 |---|---|---|
-| `SPC d f` | `describe-function` | Describe a function (**note:** conflicts with `dirvish-fd` above) |
+| `SPC d f` | `describe-function` | Describe a function |
 | `SPC d v` | `describe-variable` | Describe a variable |
 | `SPC d k` | `describe-key` | Describe a keybinding |
-| `SPC d m` | `describe-mode` | Describe current major/minor modes |
-
-> **⚠️ Note:** The `SPC d f` binding is shared by both `dirvish-fd` and `describe-function`. In practice, `describe-function` (defined second in `keybinds.el`) will shadow `dirvish-fd` at the global level. Dirvish' own mode-map still binds it inside Dirvish buffers.
+| `SPC d m` | `describe-mode` | Describe current mode |
 
 #### Eglot / LSP (`SPC e`)
 
-| Key Sequence | Command | Description |
+| Sequence | Command | Description |
 |---|---|---|
-| `SPC e a` | `eglot-code-actions` | Show code actions at point |
+| `SPC e a` | `eglot-code-actions` | Code actions at point |
 | `SPC e r` | `eglot-rename` | Rename symbol |
 | `SPC e f` | `eglot-format` | Format buffer |
 
 #### Org / Notes (`SPC n`)
 
-| Key Sequence | Command | Description |
+| Sequence | Command | Description |
 |---|---|---|
-| `SPC n c` | `org-capture` | Capture a new note/task |
+| `SPC n c` | `org-capture` | Capture note/task |
 | `SPC n a` | `org-agenda` | Show Org agenda |
 
-### Pi Input Buffer (emacs state)
+### Pi Input Buffer Keybindings (emacs state)
 
 | Key | Command | Description |
 |---|---|---|
-| `M-RET` | `pi-coding-agent-send` | Send prompt to Pi |
-| `S-RET` | `pi-coding-agent-send` | Send prompt to Pi |
-| `C-c C-c` | `pi-coding-agent-send` | Send prompt to Pi |
-| `C-c C-s` | `pi-coding-agent-queue-steering` | Queue a steering message (interrupts current tool) |
-| `C-c C-k` | `pi-coding-agent-abort` | Abort streaming response |
-| `C-c C-p` | `pi-coding-agent-menu` | Open transient menu (model, sessions, commands) |
-| `C-c C-r` | `pi-coding-agent-resume-session` | Resume a previous session |
+| `M-RET` | `pi-coding-agent-send` | Send prompt |
+| `S-RET` | `pi-coding-agent-send` | Send prompt |
+| `C-c C-c` | `pi-coding-agent-send` | Send prompt |
+| `C-c C-s` | `pi-coding-agent-queue-steering` | Queue steering message (interrupts) |
+| `C-c C-k` | `pi-coding-agent-abort` | Abort streaming |
+| `C-c C-p` | `pi-coding-agent-menu` | Transient menu |
+| `C-c C-r` | `pi-coding-agent-resume-session` | Resume previous session |
 
-### Pi Chat Buffer (normal state)
+### Pi Chat Buffer Keybindings (normal state)
 
 | Key | Command | Description |
 |---|---|---|
 | `q` | `pi-coding-agent-quit` | Quit Pi session |
 
-### Dirvish Mode Map
+---
 
-Key | Command | Description
----|---|---
-`?` | `dirvish-dispatch` | Cheatsheet / transient menu
-`a` | `dirvish-setup-menu` | Attribute settings
-`f` | `dirvish-file-info-menu` | File info
-`o` | `dirvish-quick-access` | Quick-access bookmarks
-`s` | `dirvish-quicksort` | Sort menu
-`r` | `dirvish-history-jump` | History navigation
-`l` | `dirvish-ls-switches-menu` | Live ls switch toggling
-`v` | `dirvish-vc-menu` | Version control menu
-`y` | `dirvish-yank-menu` | Copy/paste menu
-`*` | `dirvish-mark-menu` | Mark menu
-`N` | `dirvish-narrow` | Narrow / fd search
-`^` | `dirvish-history-last` | Go to parent directory via history
-`TAB` | `dirvish-subtree-toggle` | Toggle subtree expand/collapse
-`M-f` | `dirvish-history-go-forward` | History forward
-`M-b` | `dirvish-history-go-backward` | History back
-`M-e` | `dirvish-emerge-menu` | Emerge (ibuffer-like grouping)
+## Theme Reference
+
+### Palette
+
+| Color | Hex | Used For |
+|---|---|---|
+| Accent | `#ff4400` | Keywords, cursor, Evil search, mode-line, active tab, Avy lead, git branch |
+| Accent Alt | `#da4007` | Function names, builtins, links, org-level-2, second Avy lead |
+| Strings | `#bf3d0c` | String literals, constants, magit branch remote, org-level-3 |
+| Insert BG | `#913716` | Background of Evil substitution matches, insertion overlays |
+| Region | `#603120` | Selection/region, mode-line panels, show-paren match bg |
+| Highlight | `#462e25` | Line highlight (`hl-line`), inactive mode-line, vertico current |
+| Background | `#2b2b2b` | Default background |
+| Foreground | `#d4d4d4` | Main text |
+| Foreground Alt | `#a0a0a0` | Secondary text, mode-line inactive |
+| Comments | `#808080` | Comments, doc strings, borders, inactive tabs |
+
+### Face Groups
+
+| Group | Coverage |
+|---|---|
+| Core UI | default, cursor, region, hl-line, show-paren, minibuffer-prompt, vertical-border, line-number, header-line, match, link, error/warning/success |
+| Syntax | font-lock-keyword/function/type/builtin/string/constant/comment/doc/variable/preprocessor |
+| Mode Line | mode-line, mode-line-inactive, mode-line-highlight, mode-line-emphasis |
+| Evil | evil-ex-lazy-highlight, evil-search-highlight-persist, evil-ex-substitute-* |
+| Vertico/Corfu | vertico-current, vertico-group-title, corfu-* |
+| Consult | consult-preview-line, consult-preview-match, consult-file, consult-bookmark |
+| Magit | magit-section-heading, magit-branch-*, magit-diff-*, magit-log-*, magit-tag |
+| Org | org-level-1 through 5, org-todo, org-done, org-date, org-link, org-block, org-code |
+| Doom Modeline | doom-modeline-buffer-modified, doom-modeline-bar, doom-modeline-panel |
+| Terminal | term-color-* (ANSI 0-7) |
+| Statuscolumn | sc-line-number, sc-separator, sc-bump |
+| Diff-hl | diff-hl-margin-insert/delete/change/unknown |
+| Centaur Tabs | centaur-tabs-selected/unselected, centaur-tabs-active-bar-face, my/centaur-tabs-group-face |
+| Which-key | which-key-key/group-description/command-description/separator |
+| Avy | avy-lead-face, avy-lead-face-0/1, avy-background-face |
+| Flymake/Eglot | flymake-error/warning/note (wavy underlines), eglot-mode-line |
+| Rainbow Delimiters | depths 1-8 + unmatched |
+| Dired | dired-directory, dired-header, dired-flagged, dired-marked, dired-symlink |
 
 ---
 
 ## Quick Start
 
 ```bash
-# Clone the config
-git clone <this-repo> ~/.emacs.d   # or symlink to it
-
-# Install dependencies (NixOS example)
-# Add to environment.systemPackages:
-#   emacsPackages.vterm
-#   emacsPackages.nerd-icons
-
-# Ensure Pi CLI is installed (optional)
-npm install -g @earendil-works/pi-coding-agent
+# Clone or symlink the config
+ln -s /path/to/this/dir ~/.emacs.d
+#   OR
+git clone <repo-url> ~/.emacs.d
 
 # Launch
 emacs -nw
 ```
 
-### First-Time Setup
+### First-time setup
 
-1. **Package installation:** `use-package` with `:ensure t` will auto-install packages from MELPA on first run.
-2. **Nerd Font:** Install a Nerd Font (e.g., `Symbols Nerd Font Mono`) for mode-line and diff-hl icons via `M-x nerd-icons-install-fonts`.
-3. **Vterm:** The vterm library (`emacs-libvterm`) is a native module — on NixOS, install via `emacsPackages.vterm`.
-4. **Tree-sitter grammars:** Run `M-x treesit-install-language-grammar` for Python, Julia, etc.
-5. **Julia LSP:** `using Pkg; Pkg.add("LanguageServer")` in Julia.
-6. **Dirvish:** `M-x package-install RET dirvish RET`.
-7. **Pi CLI:** See [pi.dev](https://pi.dev) for authentication setup.
+1. **Package installation** — run Emacs; `use-package` with `:ensure t` auto-installs from MELPA
+2. **Nerd Font** — `M-x nerd-icons-install-fonts RET` (requires a Nerd Font on your system)
+3. **Tree-sitter grammars** — `M-x treesit-install-language-grammar RET` for Python, Julia, etc.
+4. **Julia LSP** — `using Pkg; Pkg.add("LanguageServer")` in Julia
+5. **Pi CLI** — `npm install -g @earendil-works/pi-coding-agent`, then `pi --login` for auth
+6. **Eat shell integration** — Add to `.bashrc`:
+   ```bash
+   [ -n "$EAT_SHELL_INTEGRATION_DIR" ] && source "$EAT_SHELL_INTEGRATION_DIR/bash"
+   ```
+7. **wl-clipboard** (Wayland only) — `sudo apt install wl-clipboard` or equivalent
 
 ---
 
 ## Licence
 
-Part of the `fire_profile` configuration suite. Use freely, modify at will.
+Part of the `fire_profile` configuration suite.

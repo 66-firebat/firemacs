@@ -384,7 +384,7 @@
   (load (expand-file-name "keybinds.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
-;;  13e.  Consult — Custom buffer sources
+;;  13f.  Consult — Custom buffer sources
 ;; ---------------------------------------------------------------------------
 
 (let ((real-dir (file-name-directory
@@ -392,7 +392,7 @@
   (load (expand-file-name "consult-buffer.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
-;;  13f.  Panes — Window Dividers
+;;  13g.  Panes — Window Dividers
 ;; ---------------------------------------------------------------------------
 
 (let ((real-dir (file-name-directory
@@ -400,7 +400,7 @@
   (load (expand-file-name "panes.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
-;;  13g.  Centaur Tabs — Aesthetic Tab Bar
+;;  13h.  Centaur Tabs — Aesthetic Tab Bar
 ;; ---------------------------------------------------------------------------
 
 (let ((real-dir (file-name-directory
@@ -408,7 +408,7 @@
   (load (expand-file-name "centaur-tabs.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
-;;  13h.  Eat — Terminal Emulator
+;;  13i.  Eat — Terminal Emulator
 ;; ---------------------------------------------------------------------------
 
 (let ((real-dir (file-name-directory
@@ -416,7 +416,7 @@
   (load (expand-file-name "eat.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
-;;  13i.  Pi Coding Agent — AI-assisted coding frontend
+;;  13j.  Pi Coding Agent — AI-assisted coding frontend
 ;; ---------------------------------------------------------------------------
 ;; Pi is a coding agent CLI. pi-coding-agent wraps it in an Emacs interface
 ;; with a Markdown chat buffer and a separate prompt composition buffer.
