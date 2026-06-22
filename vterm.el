@@ -18,6 +18,21 @@
 ;; M-x vterm (and SPC t t) appear as available commands.
 (require 'vterm-autoloads)
 
+;; ── Terminal width: account for statuscolumn ───────────────────
+;; The statuscolumn adds ~8 chars of before-string ("     1 ┃ ")
+;; before every line.  vterm's width calculation
+;;   width = (window-max-chars-per-line) - (vterm--get-margin-width)
+;; doesn't know about overlay prefixes, but it DOES respect window
+;; margins.  We widen the left margin BEFORE vterm-mode runs so
+;; the terminal is created with the correct width from the start.
+(defun my/vterm--adjust-margins ()
+  (let ((w (+ (sc--num-width) 3)))
+    (setq left-margin-width w)
+    (set-window-margins nil w (cdr (window-margins)))))
+
+(with-eval-after-load 'vterm
+  (advice-add 'vterm-mode :before #'my/vterm--adjust-margins))
+
 ;; ── Initial state: normal-by-default ────────────────────────────
 ;; New vterms start in normal state. Press `i` to enter insert mode.
 (evil-set-initial-state 'vterm-mode 'normal)
@@ -77,5 +92,7 @@ since the space+backspace would be consumed by that program."
 ;;       source "${EMACS_VTERM_PATH%%\/libexec\/vterm*}/etc/emacs-vterm-bash.sh"
 ;;   fi
 
-(provide 'vterm)
+;; Note: the real vterm package (Nix store) provides 'vterm —
+;; our config file does not, so with-eval-after-load 'vterm waits
+;; for the actual package to load before applying its advices.
 ;; vterm.el ends here

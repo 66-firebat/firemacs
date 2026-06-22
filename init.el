@@ -47,6 +47,10 @@
 (tool-bar-mode -1)
 (scroll-bar-mode -1)
 (tooltip-mode -1)
+(setq gc-cons-threshold 100000000) ; Increase to ~100MB during heavy tasks
+; Disable Line Wrapping on Shell Buffers: Force Emacs to stop trying to wrap long incoming text streams dynamically
+(add-hook 'shell-mode-hook (lambda () (setq truncate-lines t)))
+
 
 ;; A friendlier scratch buffer message
 (setq initial-scratch-message ";; Welcome to Emacs + Evil\n")
