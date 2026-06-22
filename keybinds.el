@@ -210,6 +210,29 @@ Sorted numerically."
           (message "No buffer at index %d" index))))))
 
 ;; ═════════════════════════════════════════════════════════════════
+;;  Dired — open from eat terminal's working directory
+;; ═════════════════════════════════════════════════════════════════
+
+(defun my/dired-from-eat ()
+  "Open dired in the current eat terminal's working directory.
+If the current buffer is an eat terminal, uses its `default-directory'.
+Otherwise, finds the most recently used eat terminal buffer and uses
+its `default-directory'.  Falls back to `default-directory' if no eat
+buffer exists."
+  (interactive)
+  (let* ((eat-buf (if (derived-mode-p 'eat-mode)
+                      (current-buffer)
+                    (car (seq-filter
+                          (lambda (b)
+                            (with-current-buffer b
+                              (derived-mode-p 'eat-mode)))
+                          (buffer-list)))))
+         (dir (if eat-buf
+                  (with-current-buffer eat-buf default-directory)
+                default-directory)))
+    (dired dir)))
+
+;; ═════════════════════════════════════════════════════════════════
 ;;  SPC leader keybindings
 ;; ═════════════════════════════════════════════════════════════════
 
@@ -276,7 +299,7 @@ Sorted numerically."
   "t p" '(pi-coding-agent-toggle :which-key "toggle pi")
 
   ;; Dired
-  "d d" '(dired :which-key "dired")
+  "d d" '(my/dired-from-eat :which-key "dired from eat dir")
 
   ;; Docs
   "d f" '(describe-function :which-key "describe function")

@@ -29,6 +29,17 @@ Subtracts 2 from the available width for the `line-prefix' separator."
   (setq eat-enable-shell-integration t)
   (setq eat-default-input-mode 'semi-char)
 
+  ;; Eat's directory tracking updates `default-directory' when the shell
+  ;; reports its working directory via OSC 7.  For this to work, your
+  ;; .bashrc needs shell integration:
+  ;;
+  ;;   [ -n "$EAT_SHELL_INTEGRATION_DIR" ] && \
+  ;;     source "$EAT_SHELL_INTEGRATION_DIR/bash"
+  ;;
+  ;; Once set up, `default-directory' in eat buffers tracks `cd' commands.
+  ;; `my/dired-from-eat' (SPC d d) uses this to open dired in the eat
+  ;; terminal's current directory.
+
   ;; Override terminal width calculation to account for the statuscolumn
   ;; `line-prefix' (2 chars).  This must be set buffer-locally in each eat
   ;; buffer via `eat-mode-hook'.  See `window-adjust-process-window-size-
