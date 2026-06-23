@@ -43,12 +43,19 @@
           (propertize " ┃ " 'face 'sc-sep)))
 
 (defun sc--sep-str ()
-  "Just the separator, padded — used as buffer-local fallback for continuations."
+  "Padded separator for continuation lines — uses ┃ with gray sc-sep face."
   (propertize "    ┃ " 'face 'sc-sep))
 
+(defun sc--bump-str ()
+  "Padded bump for the current line's continuation — uses ┣ with orange sc-bump."
+  (propertize "    ┣ " 'face 'sc-bump))
+
 (defun sc--make-ov (pos)
-  (let ((end (min (+ pos 2) (point-max))))
-    (when (<= end pos) (setq end pos))
+  "Create overlay covering the entire logical line starting at POS."
+  (let ((end (save-excursion
+               (goto-char pos)
+               (forward-line 1) (point))))
+    (when (<= end pos) (setq end (min (1+ pos) (point-max))))
     (make-overlay pos end)))
 
 ;; ═════════════════════════════════════════════════════════════════════════════
@@ -91,8 +98,10 @@
             (let ((lab (car pair)) (pos (cdr pair)))
               (let ((ov (sc--make-ov pos)))
                 (if (= pos cur)
-                    ;; Cursor line: show NUMBER ┣
-                    (overlay-put ov 'line-prefix (sc--current-str))
+                    ;; Cursor line: show icon ┣
+                    (progn
+                      (overlay-put ov 'line-prefix (sc--current-str))
+                      (overlay-put ov 'wrap-prefix (sc--bump-str)))
                   ;; Non-cursor line: show LABEL ┃
                   (overlay-put ov 'line-prefix (sc--lab-str lab)))
                 (push ov new-ovs))))
