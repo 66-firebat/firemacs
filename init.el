@@ -144,6 +144,14 @@
   (evil-collection-init))
 
 ;; ---------------------------------------------------------------------------
+;;  3b.  Evil Cursor — Per-state terminal cursor colors
+;; ---------------------------------------------------------------------------
+
+(let ((real-dir (file-name-directory
+                 (file-truename (or load-file-name buffer-file-name)))))
+  (load (expand-file-name "evil-cursor.el" real-dir)))
+
+;; ---------------------------------------------------------------------------
 ;;  4.  Leader Key — SPC (Space) is our leader
 ;; ---------------------------------------------------------------------------
 
