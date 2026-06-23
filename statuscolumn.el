@@ -185,7 +185,8 @@ Maps 12.5%% bands to glyphs, same algorithm as doom-modeline."
     (when (null candidates) (user-error "No visible lines"))
     (while (cdr candidates)
       (condition-case nil
-          (let ((char (read-key (format "Jump: %s" input))))
+          (let* ((prompt (propertize (format "󰠠 %s" input) 'face 'sc-current-face))
+                 (char (read-key prompt)))
             (cond ((= char ?\e) (user-error "Quit"))
                   ((= char ?\C-g) (keyboard-quit))
                   (t (setq input (concat input (string char)))
