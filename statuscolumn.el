@@ -123,39 +123,48 @@
         (setq sc--last-tick tick)))))
 
 ;; ═════════════════════════════════════════════════════════════════════════════
-;;  Buffer changes (process output) — debounced idle rebuild
+;;  Refresh timer — periodic safety net for missed events
 ;; ═════════════════════════════════════════════════════════════════════════════
 
-(defvar-local sc--change-timer nil
-  "Idle timer for debouncing after-change rebuilds.")
+(defvar-local sc--refresh-timer nil
+  "Repeating idle timer that periodically refreshes labels.")
+
+(defun sc--start-refresh-timer ()
+  "Start a repeating idle timer to keep labels current."
+  (unless sc--refresh-timer
+    (let ((buf (current-buffer)))
+      (setq sc--refresh-timer
+            (run-with-idle-timer 0.1 0.1
+              (lambda ()
+                (when (buffer-live-p buf)
+                  (with-current-buffer buf
+                    (when sc-mode (sc--rebuild))))))))))
+
+(defun sc--stop-refresh-timer ()
+  "Stop the refresh timer."
+  (when sc--refresh-timer
+    (cancel-timer sc--refresh-timer)
+    (setq sc--refresh-timer nil)))
+
+;; ═════════════════════════════════════════════════════════════════════════════
+;;  After-change — also rebuild immediately
+;; ═════════════════════════════════════════════════════════════════════════════
 
 (defun sc--on-after-change (&rest _)
-  "Schedule a rebuild after terminal output settles.
-Uses a short idle timer so rapid changes (lsblk, etc.) are batched."
-  (when (and sc-mode (not sc--change-timer))
-    (setq sc--change-timer
-          (run-with-idle-timer 0.1 nil
-            (lambda (buf)
-              (when (buffer-live-p buf)
-                (with-current-buffer buf
-                  (setq sc--change-timer nil)
-                  (setq sc--last-tick nil)
-                  (when sc-mode (sc--rebuild)))))
-            (current-buffer)))))
-
-(defun sc--cancel-change-timer ()
-  "Cancel the debounce timer."
-  (when sc--change-timer
-    (cancel-timer sc--change-timer)
-    (setq sc--change-timer nil)))
+  "Rebuild immediately when buffer changes."
+  (when sc-mode
+    (sc--rebuild)))
 
 ;; ═════════════════════════════════════════════════════════════════════════════
-;;  Scroll
+;;  Scroll — rebuild again with correct post-redisplay geometry
 ;; ═════════════════════════════════════════════════════════════════════════════
 
 (defun sc--on-scroll (win _start)
-  (when (and sc-mode (eq (window-buffer win) (current-buffer)))
-    (sc--rebuild)))
+  "Rebuild when window scrolls — geometry is fresh after redisplay."
+  (let ((buf (window-buffer win)))
+    (when (buffer-live-p buf)
+      (with-current-buffer buf
+        (when sc-mode (sc--rebuild))))))
 
 ;; ═════════════════════════════════════════════════════════════════════════════
 ;;  Jump command
@@ -199,13 +208,14 @@ Uses a short idle timer so rapid changes (lsblk, etc.) are batched."
           (setq sc--last-tick (buffer-chars-modified-tick)))
         (add-hook 'post-command-hook #'sc--on-post-command nil 'local)
         (add-hook 'after-change-functions #'sc--on-after-change nil 'local)
-        (add-hook 'window-scroll-functions #'sc--on-scroll nil 'local))
+        (add-hook 'window-scroll-functions #'sc--on-scroll)
+        (sc--start-refresh-timer))
     (remove-hook 'post-command-hook #'sc--on-post-command 'local)
     (remove-hook 'after-change-functions #'sc--on-after-change 'local)
-    (remove-hook 'window-scroll-functions #'sc--on-scroll 'local)
+    (remove-hook 'window-scroll-functions #'sc--on-scroll)
+    (sc--stop-refresh-timer)
     (mapc #'delete-overlay sc--ovs)
     (setq sc--ovs nil sc--pairs nil)
-    (sc--cancel-change-timer)
     (kill-local-variable 'line-prefix)
     (kill-local-variable 'wrap-prefix)
     (kill-local-variable 'display-line-numbers)
