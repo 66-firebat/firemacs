@@ -4,7 +4,7 @@
 ;;  dired.el — Dired customizations
 ;;
 ;;  - RET opens directories in the current buffer (instead of creating a new one)
-;;  - ^ goes up a directory in the current buffer
+;;  - ^ / - go up a directory in the current buffer
 ;;  - C-e toggles dired open/closed (defined in keybinds.el)
 ;; =============================================================================
 
@@ -12,14 +12,23 @@
 ;; "dangerous", but we use it intentionally to reuse the dired buffer).
 (put 'dired-find-alternate-file 'disabled nil)
 
-(with-eval-after-load 'dired
-  ;; RET opens directories in the same buffer instead of spawning a new one
-  (define-key dired-mode-map (kbd "RET") #'dired-find-alternate-file)
+(defun my/dired-up-directory ()
+  "Go up one directory, reusing the current dired buffer."
+  (interactive)
+  (find-alternate-file ".."))
 
-  ;; ^ goes up a directory in the same buffer
-  (define-key dired-mode-map (kbd "^")
-    (lambda () (interactive) (find-alternate-file ".."))))
+;; Use evil-define-key (via general-def) to override evil-collection's
+;; bindings.  Plain define-key on dired-mode-map won't work because
+;; evil-collection puts its bindings in evil auxiliary keymaps which
+;; take priority over dired-mode-map.
+;;
+;; This runs after evil-collection-dired-setup because dired.el is
+;; loaded after evil-collection in init.el, so our bindings win.
+(general-def 'normal dired-mode-map
+  "RET" 'dired-find-alternate-file
+  "^"   'my/dired-up-directory
+  "-"   'my/dired-up-directory)
 
 
-(provide 'dired)
+(provide 'dired-overrides)
 ;; dired.el ends here

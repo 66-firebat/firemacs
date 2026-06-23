@@ -220,28 +220,49 @@ Sorted numerically."
 ;;  Dired — open from eat terminal's working directory
 ;; ═════════════════════════════════════════════════════════════════
 
+(defvar my/dired-previous-buffer nil
+  "Buffer that was current before `my/dired-from-eat' opened dired.
+Used to return to the exact buffer when toggling dired closed.")
+
 (defun my/dired-from-eat ()
-  "Toggle a dired buffer open/closed from the eat terminal's directory.
+  "Toggle a dired buffer open/closed.
 
-Outside dired:
-  Opens dired using the eat terminal's current working directory.
+When called from outside dired:
+  (1) Visiting a file        → `dired-jump' (opens file's parent dir, point on file)
+  (2) In an eat terminal     → opens dired at eat's `default-directory'
+  (3) Any other buffer        → opens dired at the first eat buffer's
+                                `default-directory', or falls back to the
+                                current buffer's `default-directory'
 
-Inside dired:
-  Kills the current dired buffer."
+When called from inside dired:
+  Kills the dired buffer and returns to the previous buffer."
   (interactive)
   (if (derived-mode-p 'dired-mode)
-      (kill-buffer (current-buffer))
-    (let* ((eat-buf (if (derived-mode-p 'eat-mode)
-                        (current-buffer)
-                      (car (seq-filter
-                            (lambda (b)
-                              (with-current-buffer b
-                                (derived-mode-p 'eat-mode)))
-                            (buffer-list)))))
-           (dir (if eat-buf
-                    (with-current-buffer eat-buf default-directory)
-                  default-directory)))
-      (dired dir))))
+      ;; ── In dired: kill it and go back to previous buffer ──
+      (let ((prev my/dired-previous-buffer))
+        (kill-buffer (current-buffer))
+        (if (and prev (buffer-live-p prev))
+            (switch-to-buffer prev)
+          (message "No previous buffer to return to")))
+    ;; ── Not in dired: record current buffer and open dired ──
+    (setq my/dired-previous-buffer (current-buffer))
+    (cond
+     ;; (1) Visiting a file — dired-jump to its parent directory
+     ((buffer-file-name)
+      (dired-jump))
+     ;; (2) In an eat terminal — use its default-directory (cwd)
+     ((derived-mode-p 'eat-mode)
+      (dired default-directory))
+     ;; (3) Otherwise — try to find an eat buffer, else use current dir
+     (t
+      (let ((eat-buf (car (seq-filter
+                           (lambda (b)
+                             (with-current-buffer b
+                               (derived-mode-p 'eat-mode)))
+                           (buffer-list)))))
+        (if eat-buf
+            (dired (with-current-buffer eat-buf default-directory))
+          (dired default-directory)))))))
 
 ;; ═════════════════════════════════════════════════════════════════
 ;;  SPC leader keybindings
@@ -310,7 +331,7 @@ Inside dired:
   "t p" '(pi-coding-agent-toggle :which-key "toggle pi")
 
   ;; Dired
-  "d d" '(my/dired-from-eat :which-key "dired from eat dir")
+  ;; (removed SPC d d — C-e now handles dired toggling globally)
 
   ;; Docs
   "d f" '(describe-function :which-key "describe function")
