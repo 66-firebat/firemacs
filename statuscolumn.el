@@ -76,6 +76,29 @@
      ((= band 7)    "󰪤")
      (t             "󰪤"))))
 
+(defun sc--line-slice-icon ()
+  "Return a Nerd Font scrollbar-thumb icon based on the cursor's
+position within the current line (character offset from BOL).
+Uses the same 8-band mapping as `sc--slice-icon'.
+
+On empty lines (0 characters) returns 󰄰."
+  (let* ((bol (line-beginning-position))
+         (eol (line-end-position))
+         (total (max 1 (- eol bol)))
+         (pct (/ (float (- (point) bol)) total))
+         (band (floor (* 8 pct))))
+    (cond
+     ((>= pct 1.0)  "󰪥")
+     ((= band 0)    "󰄰")
+     ((= band 1)    "󰪞")
+     ((= band 2)    "󰪟")
+     ((= band 3)    "󰪠")
+     ((= band 4)    "󰪡")
+     ((= band 5)    "󰪢")
+     ((= band 6)    "󰪣")
+     ((= band 7)    "󰪤")
+     (t             "󰪤"))))
+
 (defvar sc--mark-map nil
   "Hash table: buffer position → mark character string.
 Built by `sc--build-mark-map' for the current buffer.")

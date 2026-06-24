@@ -45,10 +45,13 @@
      (doom-modeline--buffer-state-icon)))
 
   ;; Show absolute line number before the buffer name.
+  ;; Decorated with orange background and dark text to make it stand out.
   (doom-modeline-def-segment my-line-number
-    "Line number: L42"
-    `(:propertize (:eval (format-mode-line '("%l")))
-                  face ,(doom-modeline-face)))
+    "Line number with orange badge"
+    `((:propertize "█" face (:background "#2b2b2b" :foreground "#ff4400"))
+      (:propertize (:eval (format-mode-line '("%l")))
+                   face (:background "#ff4400" :foreground "#2b2b2b"))
+      (:propertize "█" face (:background "#2b2b2b" :foreground "#ff4400"))))
 
   ;; Redefine the main modeline, now with line number instead of percent.
   (doom-modeline-def-modeline 'main

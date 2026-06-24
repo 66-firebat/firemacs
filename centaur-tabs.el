@@ -48,7 +48,7 @@
   (setq centaur-tabs-gray-out-icons 'buffer)
 
   ;; ── Selected-tab indicator bar ───────────────────────────────
-  (setq centaur-tabs-set-bar 'under)        ;; Underline active tab
+  (setq centaur-tabs-set-bar nil)           ;; No active tab bar
 
   ;; ── Edge margins — remove default leading/trailing spaces ──
   ;; centaur-tabs-left/right-edge-margin default to " " which adds
@@ -169,20 +169,54 @@ Result is cached per project path."
 ;; indicator icons.
 
 (defun my/centaur-tabs-tab-label (tab)
-  "Return a label for TAB.
+  "Return a label for TAB with a live line number (active tab)
+or a stale cached line number (inactive tab).
 
-Modified buffer:  󱍸 filename   Unmodified:  filename"
+Format: █ filename  <line> "
   (let* ((tabset (centaur-tabs-current-tabset))
          (selected-p (and tabset (centaur-tabs-selected-p tab tabset)))
          (buf (car tab))
          (bufname (buffer-name buf))
-         (modified (and (buffer-modified-p buf)
-                        (not (with-current-buffer buf
-                               (derived-mode-p 'vterm-mode)))))
-         (mod-mark (if modified "󱍸 " "")))
+         (line-str (my/centaur-tabs--line-number buf)))
     (if selected-p
-        (format "█ %s%s  " mod-mark bufname)
-      (format " %s%s " mod-mark bufname))))
+        (format "█ %s  %s " bufname line-str)
+      (format " %s  %s" bufname line-str))))
+
+;; ── Line number cache ─────────────────────────────────────────
+;; Active tab shows live line number; inactive tabs show a cached
+;; stale value.  Only the active buffer's line number updates in
+;; real time as the cursor moves.
+
+(defvar my/centaur-tabs--line-cache (make-hash-table :test 'eq)
+  "Hash table mapping buffer \\→ last-known line number string.
+Inactive tabs display the cached value so the number stays stale
+until the buffer becomes active again.")
+
+(defun my/centaur-tabs--line-number (buf)
+  "Return the line number string for BUF.
+Active buffer gets the live line number; inactive buffers return
+the cached stale value with fallback to 󱃓."
+  (if (eq buf (current-buffer))
+      ;; Active buffer — compute live, cache it
+      (let ((live (format-mode-line '("%l"))))
+        (puthash buf live my/centaur-tabs--line-cache)
+        live)
+    ;; Inactive buffer — use stale cached value
+    (gethash buf my/centaur-tabs--line-cache "󱃓")))
+
+;; ── Live update — force tab bar redisplay on every command ────
+;; This makes the active tab's line number update in real time as
+;; the cursor moves.
+
+(defun my/centaur-tabs--force-update ()
+  "Force tab bar redisplay for line number live updates."
+  (when (and centaur-tabs-mode (not (minibufferp)))
+    (let ((tabset (centaur-tabs-current-tabset)))
+      (when tabset
+        (centaur-tabs-set-template tabset nil)))
+    (force-window-update (selected-window))))
+
+(add-hook 'post-command-hook #'my/centaur-tabs--force-update)
 
 ;; ── Trim trailing space ───────────────────────────────────────
 ;; centaur-tabs-line-tab (a defsubst) appends " " to every tab
