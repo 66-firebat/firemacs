@@ -209,11 +209,11 @@ Background: #2b2b2b  Accent: #ff4400")
  ;;  Diff-hl (left margin icons)
  ;; ═══════════════════════════════════════════════════════════════
 
- `(diff-hl-margin-insert ((t (:foreground ,firebat-accent :background nil))))
- `(diff-hl-margin-delete ((t (:foreground ,firebat-accent :background nil))))
- `(diff-hl-margin-change ((t (:foreground ,firebat-accent :background nil))))
- `(diff-hl-margin-unknown ((t (:foreground ,firebat-accent :background nil))))
- `(diff-hl-margin-ignored ((t (:foreground ,firebat-comment :background nil))))
+ `(diff-hl-margin-insert ((t (:foreground ,firebat-accent :background ,firebat-bg))))
+ `(diff-hl-margin-delete ((t (:foreground ,firebat-accent :background ,firebat-bg))))
+ `(diff-hl-margin-change ((t (:foreground ,firebat-accent :background ,firebat-bg))))
+ `(diff-hl-margin-unknown ((t (:foreground ,firebat-accent :background ,firebat-bg))))
+ `(diff-hl-margin-ignored ((t (:foreground ,firebat-comment :background ,firebat-bg))))
 
  ;; ═══════════════════════════════════════════════════════════════
  ;;  Centaur Tabs
@@ -222,8 +222,8 @@ Background: #2b2b2b  Accent: #ff4400")
  `(centaur-tabs-default ((t (:background ,firebat-bg :foreground ,firebat-bg))))
  `(centaur-tabs-selected ((t (:background ,firebat-accent :foreground ,firebat-bg :weight bold))))
  `(centaur-tabs-unselected ((t (:background ,firebat-bg :foreground ,firebat-accent))))
- `(centaur-tabs-selected-modified ((t (:background "#444444" :foreground ,firebat-bg :weight bold))))
- `(centaur-tabs-unselected-modified ((t (:background ,firebat-bg :foreground "#444444"))))
+ `(centaur-tabs-selected-modified ((t (:background "#666666" :foreground ,firebat-bg :weight bold))))
+ `(centaur-tabs-unselected-modified ((t (:background ,firebat-bg :foreground "#666666"))))
  `(centaur-tabs-active-bar-face ((t (:background ,firebat-accent))))
  `(centaur-tabs-close-selected ((t (:inherit centaur-tabs-selected))))
  `(centaur-tabs-close-unselected ((t (:inherit centaur-tabs-unselected))))
