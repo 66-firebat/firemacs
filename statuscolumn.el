@@ -69,10 +69,37 @@ Maps 12.5%% bands to glyphs, same algorithm as doom-modeline."
   "Hash table: buffer position -> mark character string.
 Built by `sc--build-mark-map' for the current buffer.")
 
+(defvar sc--recent-marks nil
+  "Alist of (BOL . CHAR) — most recently set mark for each line.
+Updated by `sc--track-recent-mark' via :after advice on evil-set-marker.")
+
+(defun sc--track-recent-mark (char &optional pos &rest _)
+  "Record that mark CHAR was set at POS (or point).
+Removes the old position for the same mark character."
+  (let ((bol (save-excursion
+               (goto-char (or pos (point)))
+               (line-beginning-position))))
+    ;; Remove old entry with the same mark character from any line
+    (setq sc--recent-marks
+          (cl-remove-if (lambda (p) (= (cdr p) char)) sc--recent-marks))
+    ;; Add new entry
+    (push (cons bol char) sc--recent-marks)
+    ;; Keep only the 50 most recent entries
+    (when (> (length sc--recent-marks) 50)
+      (setq sc--recent-marks (cl-subseq sc--recent-marks 0 50)))))
+
+(when (fboundp 'evil-set-marker)
+  (advice-add 'evil-set-marker :after #'sc--track-recent-mark))
+
 (defun sc--build-mark-map ()
   "Build map of line-beginning positions to Evil mark characters.
-Uses evil-get-marker which handles local (a-z) and global (A-Z) marks."
+Recently set marks take priority over older ones on the same line."
   (setq sc--mark-map (make-hash-table :test 'eql))
+  ;; First, add recently set marks (most recent first, first wins)
+  (dolist (pair sc--recent-marks)
+    (unless (gethash (car pair) sc--mark-map)
+      (puthash (car pair) (string (cdr pair)) sc--mark-map)))
+  ;; Then fill in any remaining marks from Evil's marker list
   (when (fboundp 'evil-get-marker)
     (dolist (char (append (number-sequence ?a ?z) (number-sequence ?A ?Z)))
       (let ((pos (evil-get-marker char)))
