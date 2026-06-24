@@ -85,12 +85,13 @@
 ;; name — find-file would fail.  Check for live buffers first.
 (advice-add 'evil--jumps-jump :around
             (lambda (orig-fn idx shift)
-              (cl-letf (((symbol-function 'find-file)
-                         (lambda (filename &optional wildcards)
-                           (if (get-buffer filename)
-                               (switch-to-buffer filename)
-                             (find-file filename wildcards)))))
-                (funcall orig-fn idx shift))))
+              (let ((orig-find-file (symbol-function 'find-file)))
+                (cl-letf (((symbol-function 'find-file)
+                           (lambda (filename &optional wildcards)
+                             (if (get-buffer filename)
+                                 (switch-to-buffer filename)
+                               (funcall orig-find-file filename wildcards)))))
+                  (funcall orig-fn idx shift)))))
 
 (defun jr--on-window-config-change ()
   "Ensure new windows also point to the global struct."
