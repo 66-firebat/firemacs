@@ -288,7 +288,9 @@ Fires during redisplay, right after window-start changes."
 (defun sc-avy-goto-line ()
   "Jump to a visible line by typing its label (a-z, punctuation)."
   (interactive)
-  (let ((sc--jump-active t))
+  (let ((sc--jump-active t)
+        (in-visual (and (fboundp 'evil-visual-state-p)
+                        (evil-visual-state-p))))
     (unwind-protect
         (progn
           (sc--init)
@@ -310,7 +312,17 @@ Fires during redisplay, right after window-start changes."
             (when candidates
               (let ((target (cdar candidates)))
                 (when (fboundp 'evil-set-jump) (evil-set-jump))
-                (push-mark) (goto-char target)))))
+                ;; In Evil visual state: keep the selection alive by telling
+                ;; `evil-visual-post-command' to REFRESH (not contract) the
+                ;; region.  We set `evil-visual-region-expanded' back to nil
+                ;; so the post-command calls `evil-visual-refresh' instead of
+                ;; `evil-visual-contract-region', extending the selection
+                ;; from the anchor (mark) to the new point position.
+                ;; Skip `push-mark' to avoid moving the anchor.
+                (if in-visual
+                    (setq evil-visual-region-expanded nil)
+                  (push-mark))
+                (goto-char target)))))
       (setq sc--jump-active nil)
       (sc--init))))
 
@@ -318,12 +330,18 @@ Fires during redisplay, right after window-start changes."
 (defun sc-avy-goto-char-2 ()
   "Like `avy-goto-char-2' but shows bolt icon (󰠠) in statuscolumn."
   (interactive)
-  (setq sc--jump-active t)
-  (sc--init)
-  (unwind-protect
-      (call-interactively 'avy-goto-char-2)
-    (setq sc--jump-active nil)
-    (sc--init)))
+  (let ((in-visual (and (fboundp 'evil-visual-state-p)
+                        (evil-visual-state-p))))
+    ;; Keep Evil visual selection alive: tell post-command to refresh
+    ;; instead of contract, so the selection extends to the new point.
+    (when in-visual
+      (setq evil-visual-region-expanded nil))
+    (setq sc--jump-active t)
+    (sc--init)
+    (unwind-protect
+        (call-interactively 'avy-goto-char-2)
+      (setq sc--jump-active nil)
+      (sc--init))))
 
 ;; ═════════════════════════════════════════════════════════════════════════════
 ;;  sc-mode
