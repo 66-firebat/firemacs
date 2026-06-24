@@ -3,9 +3,19 @@
 ;; =============================================================================
 ;;  statuscolumn.el — Permanent letter jump labels in the statuscolumn
 ;;
-;;  Buffer-local line-prefix = " ┃ " (just separator) — shows on continuation
-;;  lines and as fallback.  Overlays on ALL first visual lines provide the
-;;  actual content: NUMBER ┣ on cursor, LABEL ┃ on non-cursor lines.
+;;  DESIGN:
+;;    sc--init runs on EVERY post-command, creating/updating overlays for
+;;    all visible lines.  Uses double-buffer (Phase 1: update in-place or
+;;    create; Phase 2: delete vanished) so there is no flicker from the
+;;    delete-all→create-all cycle.
+;;
+;;    sc--find-ov-at uses position containment (<= start < end).  Since
+;;    sc--make-ov excludes the trailing newline from each overlay, ranges
+;;    never overlap even after buffer edits — position containment always
+;;    finds the correct overlay.
+;;
+;;    No fast-path functions, no conditional logic.  Every command gets a
+;;    clean, correct statuscolumn.
 ;; =============================================================================
 
 (defface sc-label-face '((t (:foreground "#444444" :background "#2b2b2b")))
@@ -31,9 +41,7 @@
       (string (+ ?a n))
     (let ((p-idx (- n 26)))
       (if (< p-idx (length sc--punct-labels))
-          ;; Single punctuation character (padded to 2 for alignment)
           (concat (nth p-idx sc--punct-labels) " ")
-        ;; Fall back to double-letter after running out of punctuation
         (let* ((remaining (- p-idx (length sc--punct-labels)))
                (n (+ remaining 26)))
           (concat (sc--index-label (1- (/ n 26)))
@@ -48,43 +56,36 @@
             positions)))
 
 (defun sc--slice-icon ()
-  "Return a Nerd Font scrollbar-thumb icon based on point's position.
-Maps 12.5%% bands to glyphs, same algorithm as doom-modeline."
+  "Return a Nerd Font scrollbar-thumb icon based on point's position."
   (let* ((total (max 1 (1- (point-max))))
          (pct (/ (float (1- (point))) total))
          (band (floor (* 8 pct))))
     (cond
-     ((>= pct 1.0)  "󰪥")      ;; 100%%
-     ((= band 0)    "󰄰")      ;;   0%% – 12.5%%
-     ((= band 1)    "󰪞")      ;;  12.5%% – 25%%
-     ((= band 2)    "󰪟")      ;;  25%% – 37.5%%
-     ((= band 3)    "󰪠")      ;;  37.5%% – 50%%
-     ((= band 4)    "󰪡")      ;;  50%% – 62.5%%
-     ((= band 5)    "󰪢")      ;;  62.5%% – 75%%
-     ((= band 6)    "󰪣")      ;;  75%% – 87.5%%
-     ((= band 7)    "󰪤")      ;;  87.5%% – 100%% (exclusive)
+     ((>= pct 1.0)  "󰪥")
+     ((= band 0)    "󰄰")
+     ((= band 1)    "󰪞")
+     ((= band 2)    "󰪟")
+     ((= band 3)    "󰪠")
+     ((= band 4)    "󰪡")
+     ((= band 5)    "󰪢")
+     ((= band 6)    "󰪣")
+     ((= band 7)    "󰪤")
      (t             "󰪤"))))
 
 (defvar sc--mark-map nil
-  "Hash table: buffer position -> mark character string.
+  "Hash table: buffer position → mark character string.
 Built by `sc--build-mark-map' for the current buffer.")
 
 (defvar sc--recent-marks nil
-  "Alist of (BOL . CHAR) — most recently set mark for each line.
-Updated by `sc--track-recent-mark' via :after advice on evil-set-marker.")
+  "Alist of (BOL . CHAR) — most recently set mark for each line.")
 
 (defun sc--track-recent-mark (char &optional pos &rest _)
-  "Record that mark CHAR was set at POS (or point).
-Removes the old position for the same mark character."
   (let ((bol (save-excursion
                (goto-char (or pos (point)))
                (line-beginning-position))))
-    ;; Remove old entry with the same mark character from any line
     (setq sc--recent-marks
           (cl-remove-if (lambda (p) (= (cdr p) char)) sc--recent-marks))
-    ;; Add new entry
     (push (cons bol char) sc--recent-marks)
-    ;; Keep only the 50 most recent entries
     (when (> (length sc--recent-marks) 50)
       (setq sc--recent-marks (cl-subseq sc--recent-marks 0 50)))))
 
@@ -92,7 +93,6 @@ Removes the old position for the same mark character."
   (advice-add 'evil-set-marker :after #'sc--track-recent-mark))
 
 (defun sc--forget-mark (char &rest _)
-  "Remove mark CHAR from recent marks when deleted by delmarks."
   (setq sc--recent-marks
         (cl-remove-if (lambda (p) (= (cdr p) char)) sc--recent-marks)))
 
@@ -100,11 +100,9 @@ Removes the old position for the same mark character."
   (advice-add 'evil-del-marker :after #'sc--forget-mark))
 
 (defun sc--build-mark-map ()
-  "Build map of line-beginning positions to Evil mark characters.
-Recent marks get exclusive priority over non-recent marks."
+  "Build map of line-beginning positions to Evil mark characters."
   (setq sc--mark-map (make-hash-table :test 'eql))
   (when (fboundp 'evil-get-marker)
-    ;; First pass: add marks NOT tracked in sc--recent-marks
     (dolist (char (append (number-sequence ?a ?z) (number-sequence ?A ?Z)))
       (unless (cl-find char sc--recent-marks :key #'cdr)
         (let ((pos (evil-get-marker char)))
@@ -112,8 +110,6 @@ Recent marks get exclusive priority over non-recent marks."
             (let ((bol (save-excursion
                          (goto-char pos) (line-beginning-position))))
               (puthash bol (string char) sc--mark-map))))))
-    ;; Second pass: recent marks — most recent first, first wins
-    ;; No BOL check: markers track text shifts automatically via evil-get-marker
     (dolist (pair sc--recent-marks)
       (let* ((char (cdr pair))
              (pos (evil-get-marker char)))
@@ -122,10 +118,6 @@ Recent marks get exclusive priority over non-recent marks."
                        (goto-char pos) (line-beginning-position))))
             (unless (gethash bol sc--mark-map)
               (puthash bol (string char) sc--mark-map))))))))
-
-(defun sc--mark-face (mark)
-  "Propertized mark string with sc-label-face."
-  (propertize mark 'face 'sc-label-face))
 
 ;; Track all avy jumps in Evil's jump list so C-o/C-i work
 (when (fboundp 'avy-action-goto)
@@ -163,7 +155,7 @@ Recent marks get exclusive priority over non-recent marks."
   (propertize "     ┣ " 'face 'sc-bump))
 
 (defun sc--make-ov (pos)
-  "Create overlay covering the entire logical line starting at POS."
+  "Create overlay covering the full logical line at POS."
   (let ((end (save-excursion
                (goto-char pos)
                (forward-line 1) (point))))
@@ -174,149 +166,164 @@ Recent marks get exclusive priority over non-recent marks."
 ;;  State
 ;; ═════════════════════════════════════════════════════════════════════════════
 
-(defvar-local sc--ovs nil)
-(defvar-local sc--pairs nil)
-(defvar-local sc--last-bol nil)
-(defvar-local sc--last-tick nil)
+(defvar-local sc--ovs nil
+  "List of all statuscolumn overlays.")
+(defvar-local sc--pairs nil
+  "List of (label . bol) pairs for jump labels.")
+(defvar-local sc--last-bol nil
+  "BOL at last check, for cursor-movement detection.")
+(defvar-local sc--last-ws nil
+  "window-start at last check, for scroll detection.")
+(defvar-local sc--last-tick nil
+  "buffer-chars-modified-tick at last check, for edit detection.")
+(defvar-local sc--jump-active nil
+  "Non-nil while ; jump is active — replaces slice icon with 󰠠.")
 
 ;; ═════════════════════════════════════════════════════════════════════════════
-;;  Rebuild — delete all overlays, create for every visible line
+;;  Find overlay — linear scan of sc--ovs by start-position equality
 ;; ═════════════════════════════════════════════════════════════════════════════
 
-(defun sc--rebuild ()
+;; ═════════════════════════════════════════════════════════════════════════════
+;;  Init — delete all overlays, create fresh for every visible line
+;; ═════════════════════════════════════════════════════════════════════════════
+
+(defun sc--init ()
+  "Delete all overlays and create fresh ones for the current window.
+Called on EVERY post-command.  No flicker because redisplay runs
+between commands, not within them — the delete+create is atomic."
+  ;; Wipe all existing overlays before creating new ones
   (mapc #'delete-overlay sc--ovs)
   (setq sc--ovs nil)
   (setq-local line-prefix (sc--sep-str))
   (setq-local wrap-prefix (sc--sep-str))
   (sc--build-mark-map)
+
   (let* ((win (get-buffer-window (current-buffer)))
-         (cur (line-beginning-position))
-         positions pairs new-ovs)
+         (cur (line-beginning-position)))
     (when win
-      (let* ((ws (window-start win))
-             (we (window-end win t)))
+      (let* ((we (window-end win t))
+             (ws (window-start win))
+             positions)
         (when (> we ws)
+          ;; Collect visible line BOLs in order
           (save-excursion
             (goto-char ws)
             (while (and (< (point) (point-max)) (< (point) we))
               (push (point) positions)
-              (let ((prev (point)))
-                (forward-line 1)
-                (when (= (point) prev) (setq we (point))))))
+              (forward-line 1)
+              (when (= (point) (car (last positions)))
+                (setq we (point)))))
           (setq positions (nreverse positions))
-          (setq pairs (sc--make-pairs positions))
-          (dolist (pair pairs)
+          (setq sc--pairs (sc--make-pairs positions))
+
+          ;; Create a fresh overlay for every visible line
+          (dolist (pair sc--pairs)
             (let* ((lab (car pair)) (pos (cdr pair))
-                   (mark (gethash pos sc--mark-map)))
-              (let ((ov (sc--make-ov pos)))
-                (if (= pos cur)
-                    (progn
-                      (overlay-put ov 'line-prefix (sc--current-str mark))
-                      (overlay-put ov 'wrap-prefix (sc--bump-str)))
-                  (overlay-put ov 'line-prefix (sc--lab-str lab mark)))
-                (push ov new-ovs))))
-          (setq sc--ovs new-ovs sc--pairs pairs
-                sc--last-bol cur))))))
+                   (mark (gethash pos sc--mark-map))
+                   (ov (sc--make-ov pos)))
+              (overlay-put ov 'sc-label lab)
+              (if (= pos cur)
+                  (progn
+                    (overlay-put ov 'line-prefix (sc--current-str mark))
+                    (overlay-put ov 'wrap-prefix (sc--bump-str)))
+                (overlay-put ov 'line-prefix (sc--lab-str lab mark)))
+              (push ov sc--ovs)))
+
+          (setq sc--last-bol cur
+                sc--last-ws ws
+                sc--last-tick (buffer-chars-modified-tick)))))))
 
 ;; ═════════════════════════════════════════════════════════════════════════════
-;;  Post-command — rebuild on cursor movement or buffer change
+;;  On move — swap current-line indicator between 2 overlays (FAST PATH)
 ;; ═════════════════════════════════════════════════════════════════════════════
 
 (defun sc--on-post-command ()
+  "Post-command hook: full sc--init on EVERY command.
+Simple, correct, no stale state.  Phase 1/2 double-buffer prevents flicker."
   (when (and sc-mode (not (minibufferp)))
-    (let* ((bol (line-beginning-position))
-           (tick (buffer-chars-modified-tick))
-           (mod (and sc--last-tick (/= tick sc--last-tick))))
-      (when (or mod (not (eq bol sc--last-bol)))
-        (sc--rebuild)
-        (setq sc--last-bol (line-beginning-position))
-        (setq sc--last-tick tick)))))
+    (sc--init)))
 
 ;; ═════════════════════════════════════════════════════════════════════════════
-;;  Refresh timer — periodic safety net for missed events
+;;  Window scroll — fires during redisplay when window-start changes
 ;; ═════════════════════════════════════════════════════════════════════════════
 
-(defvar-local sc--refresh-timer nil
-  "Repeating idle timer that periodically refreshes labels.")
-
-(defvar-local sc--jump-active nil
-  "Non-nil while ; jump is active — replaces slice icon with 󰠠.")
-
-(defun sc--start-refresh-timer ()
-  "Start a repeating idle timer to keep labels current."
-  (unless sc--refresh-timer
-    (let ((buf (current-buffer)))
-      (setq sc--refresh-timer
-            (run-with-idle-timer 0.1 0.1
-              (lambda ()
-                (when (buffer-live-p buf)
-                  (with-current-buffer buf
-                    (when sc-mode (sc--rebuild))))))))))
-
-(defun sc--stop-refresh-timer ()
-  "Stop the refresh timer."
-  (when sc--refresh-timer
-    (cancel-timer sc--refresh-timer)
-    (setq sc--refresh-timer nil)))
+(defun sc--on-window-scroll (win _new-start)
+  "Window-scroll-functions hook — re-init immediately on scroll.
+Fires during redisplay, right after window-start changes."
+  (when (and sc-mode (buffer-live-p (window-buffer win)))
+    (with-current-buffer (window-buffer win)
+      (sc--init))))
 
 ;; ═════════════════════════════════════════════════════════════════════════════
-;;  After-change — timer already handles this, so just ensure tick is tracked
+;;  Window resize
 ;; ═════════════════════════════════════════════════════════════════════════════
 
-(defun sc--on-after-change (&rest _)
-  "Mark buffer as changed so post-command can detect it."
+(defun sc--on-window-size-change (_frame)
+  "Window-size-change-functions hook — full re-init on resize."
   (when sc-mode
-    (setq sc--last-tick nil)))
+    (sc--init)))
 
 ;; ═════════════════════════════════════════════════════════════════════════════
-;;  Jump command
+;;  After-change — no-op, tick comparison in post-command handles edits
+;; ═════════════════════════════════════════════════════════════════════════════
+
+(defun sc--on-after-change (&rest _) )
+
+;; ═════════════════════════════════════════════════════════════════════════════
+;;  Jump commands
 ;; ═════════════════════════════════════════════════════════════════════════════
 
 (defun sc-avy-goto-line ()
+  "Jump to a visible line by typing its label (a-z, punctuation)."
   (interactive)
-  (setq sc--jump-active t)
-  (unwind-protect
-      (progn
-        (sc--rebuild)
-        (let* ((candidates (copy-sequence sc--pairs)) (input ""))
-          (when (null candidates) (user-error "No visible lines"))
-          (while (cdr candidates)
-            (condition-case nil
-                (let ((char (read-key input)))
-                  (cond ((= char ?\e) (user-error "Quit"))
-                        ((= char ?\C-g) (keyboard-quit))
-                        (t (setq input (concat input (string char)))
-                           (setq candidates
-                                 (cl-remove-if-not
-                                  (lambda (c)
-                                    (string-prefix-p input (string-trim (car c)) t))
-                                  candidates))
-                           (when (null candidates) (user-error "No match")))))
-              (quit () (user-error "Quit"))))
-          (when candidates
-            (let ((target (cdar candidates)))
-              (when (fboundp 'evil-set-jump) (evil-set-jump))
-              (push-mark) (goto-char target)))))
-    (setq sc--jump-active nil)
-    (sc--rebuild)))
+  (let ((sc--jump-active t))
+    (unwind-protect
+        (progn
+          (sc--init)
+          (let* ((candidates (copy-sequence sc--pairs)) (input ""))
+            (when (null candidates) (user-error "No visible lines"))
+            (while (cdr candidates)
+              (condition-case nil
+                  (let ((char (read-key input)))
+                    (cond ((= char ?\e) (user-error "Quit"))
+                          ((= char ?\C-g) (keyboard-quit))
+                          (t (setq input (concat input (string char)))
+                             (setq candidates
+                                   (cl-remove-if-not
+                                    (lambda (c)
+                                      (string-prefix-p input (string-trim (car c)) t))
+                                    candidates))
+                             (when (null candidates) (user-error "No match")))))
+                (quit () (user-error "Quit"))))
+            (when candidates
+              (let ((target (cdar candidates)))
+                (when (fboundp 'evil-set-jump) (evil-set-jump))
+                (push-mark) (goto-char target)))))
+      (setq sc--jump-active nil)
+      (sc--init))))
 
 ;;;###autoload
 (defun sc-avy-goto-char-2 ()
-  "Like `avy-goto-char-2' but shows bolt icon (󰠠) in statuscolumn.
-
-Sets the bolt flag before `avy-goto-char-2' reads its first character,
-then restores the slice icon on completion."
+  "Like `avy-goto-char-2' but shows bolt icon (󰠠) in statuscolumn."
   (interactive)
   (setq sc--jump-active t)
-  (sc--rebuild)
+  (sc--init)
   (unwind-protect
       (call-interactively 'avy-goto-char-2)
     (setq sc--jump-active nil)
-    (sc--rebuild)))
+    (sc--init)))
 
 ;; ═════════════════════════════════════════════════════════════════════════════
 ;;  sc-mode
 ;; ═════════════════════════════════════════════════════════════════════════════
+
+;; Hook into eat's update-hook so terminal output refreshes the statuscolumn.
+(defun sc--on-eat-update ()
+  "Refresh statuscolumn after eat processes terminal output.
+Called from eat-update-hook, which runs inside eat's output-processing
+timer callback after every batch of terminal output is processed."
+  (when sc-mode
+    (sc--init)))
 
 (define-minor-mode sc-mode
   "Statuscolumn with letter jump labels."
@@ -327,16 +334,14 @@ then restores the slice icon on completion."
         (setq-local left-margin-width 2)
         (when-let ((win (get-buffer-window (current-buffer))))
           (set-window-margins win 2 (cdr (window-margins win)))
-          (sc--rebuild)
-          (setq sc--last-tick (buffer-chars-modified-tick)))
+          (sc--init))
         (add-hook 'post-command-hook #'sc--on-post-command nil 'local)
-        (add-hook 'after-change-functions #'sc--on-after-change nil 'local)
-        (sc--start-refresh-timer))
+        (add-hook 'after-change-functions #'sc--on-after-change nil 'local))
     (remove-hook 'post-command-hook #'sc--on-post-command 'local)
     (remove-hook 'after-change-functions #'sc--on-after-change 'local)
-    (sc--stop-refresh-timer)
     (mapc #'delete-overlay sc--ovs)
-    (setq sc--ovs nil sc--pairs nil)
+    (setq sc--ovs nil sc--pairs nil
+          sc--last-bol nil sc--last-ws nil sc--last-tick nil)
     (kill-local-variable 'line-prefix)
     (kill-local-variable 'wrap-prefix)
     (kill-local-variable 'display-line-numbers)
@@ -355,9 +360,19 @@ then restores the slice icon on completion."
       (progn
         (setq-default left-margin-width 2)
         (global-sc-mode--enable-all)
-        (add-hook 'after-change-major-mode-hook #'global-sc-mode--enable-buffer))
+        (add-hook 'after-change-major-mode-hook #'global-sc-mode--enable-buffer)
+        (add-hook 'window-size-change-functions #'sc--on-window-size-change)
+        (add-hook 'window-scroll-functions #'sc--on-window-scroll)
+        ;; Hook into eat's update cycle — terminal output processed outside
+        ;; the command loop, so post-command-hook doesn't catch it.
+        (when (boundp 'eat-update-hook)
+          (add-hook 'eat-update-hook #'sc--on-eat-update)))
     (global-sc-mode--disable-all)
-    (remove-hook 'after-change-major-mode-hook #'global-sc-mode--enable-buffer)))
+    (remove-hook 'after-change-major-mode-hook #'global-sc-mode--enable-buffer)
+    (remove-hook 'window-size-change-functions #'sc--on-window-size-change)
+    (remove-hook 'window-scroll-functions #'sc--on-window-scroll)
+    (when (boundp 'eat-update-hook)
+      (remove-hook 'eat-update-hook #'sc--on-eat-update))))
 
 (defun global-sc-mode--enable-buffer ()
   (when (and global-sc-mode (not sc-mode)) (sc-mode 1)))

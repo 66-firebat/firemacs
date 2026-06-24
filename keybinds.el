@@ -12,7 +12,8 @@
 ;; Window navigation uses Evil's built-in C-w h/j/k/l.
 (general-def '(normal insert visual)
   "C-h" 'centaur-tabs-backward
-  "C-l" 'centaur-tabs-forward)
+  "C-l" 'centaur-tabs-forward
+  "C-u" 'evil-scroll-up)
 
 ;; ── Dired from anywhere (all modes) ───────────────────────
 ;; C-e opens dired in the eat terminal's current working directory.

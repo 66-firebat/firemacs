@@ -70,6 +70,13 @@
 ;; Silence the bell — no beeping
 (setq ring-bell-function 'ignore)
 
+;; Scroll behavior — never recenter cursor when scrolling past window edges.
+;; With scroll-conservatively > 100, Emacs scrolls just enough to bring
+;; point into view at the top/bottom of the window, without centering it.
+;; This gives the equivalent of Vim's scrolloff=0.
+(setq scroll-conservatively 101)
+(setq scroll-margin 0)
+
 ;; Follow symlinks when opening files (useful on NixOS / home-manager)
 (setq find-file-visit-truename t)
 
