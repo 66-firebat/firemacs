@@ -386,6 +386,17 @@
   (global-sc-mode 1))
 
 ;; ---------------------------------------------------------------------------
+;;  13ab.  Smooth Scrolling — Animated C-u/C-d/C-f/C-b/C-y/C-e
+;; ---------------------------------------------------------------------------
+
+;; Bundles neoscroll.el for smooth animated scrolling. Intercepts
+;; evil-scroll-up/down/page-up/page-down/line-up/line-down with
+;; animated easing functions.  See neoscroll.el.
+(let ((real-dir (file-name-directory
+                 (file-truename (or load-file-name buffer-file-name)))))
+  (load (expand-file-name "neoscroll.el" real-dir)))
+
+;; ---------------------------------------------------------------------------
 ;;  13a.  Global Jump Ring — C-o/C-i across all windows
 ;; ---------------------------------------------------------------------------
 

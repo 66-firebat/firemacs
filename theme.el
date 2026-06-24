@@ -198,6 +198,11 @@ Background: #2b2b2b  Accent: #ff4400")
  `(sc-line-number ((t (:foreground "#444444"))))
  `(sc-separator ((t (:foreground "#444444"))))
  `(sc-bump ((t (:foreground ,firebat-accent :weight bold))))
+ `(sc-label-face ((t (:foreground "#444444" :background ,firebat-bg))))
+ `(sc-current-face ((t (:foreground ,firebat-accent :background ,firebat-bg))))
+ `(sc-sep ((t (:foreground "#444444"))))
+ `(sc-wrap-icon ((t (:foreground ,firebat-accent :background ,firebat-bg))))
+ `(sc-wrap-icon-dim ((t (:foreground "#444444" :background ,firebat-bg))))
  ;; ═══════════════════════════════════════════════════════════════
  ;;  Diff-hl (left margin icons)
  ;; ═══════════════════════════════════════════════════════════════

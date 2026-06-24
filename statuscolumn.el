@@ -26,6 +26,10 @@
   "Face for ┃ separator.")
 (defface sc-bump '((t (:foreground "#ff4400" :weight bold)))
   "Face for ┣ separator on current line.")
+(defface sc-wrap-icon '((t (:foreground "#ff4400" :background "#2b2b2b")))
+  "Face for  icon on wrapped CURRENT-line continuation lines.")
+(defface sc-wrap-icon-dim '((t (:foreground "#CCCCCC" :background "#2b2b2b")))
+  "Face for  icon on wrapped NON-CURRENT continuation lines.")
 
 ;; ═════════════════════════════════════════════════════════════════════════════
 ;;  Helpers
@@ -147,12 +151,20 @@ Built by `sc--build-mark-map' for the current buffer.")
             (propertize "┃ " 'face 'sc-sep))))
 
 (defun sc--sep-str ()
-  "Padded separator for continuation lines — ┃ with gray sc-sep face.  7 chars."
-  (propertize "     ┃ " 'face 'sc-sep))
+  "Wrap prefix for non-current continuation lines —  ┃.  7 chars.
+   3 spaces +  + space + ┃ + space, aligned with label position."
+  (concat (propertize "   " 'face 'sc-sep)
+          (propertize "" 'face 'sc-wrap-icon-dim)
+          (propertize " " 'face 'sc-sep)
+          (propertize "┃ " 'face 'sc-sep)))
 
 (defun sc--bump-str ()
-  "Padded bump for current line's continuation — ┣ with orange sc-bump.  7 chars."
-  (propertize "     ┣ " 'face 'sc-bump))
+  "Wrap prefix for current continuation lines —  ┣.  7 chars.
+   3 spaces +  + space + ┣ + space, aligned with label position."
+  (concat (propertize "   " 'face 'sc-bump)
+          (propertize "" 'face 'sc-wrap-icon)
+          (propertize " " 'face 'sc-bump)
+          (propertize "┣ " 'face 'sc-bump)))
 
 (defun sc--make-ov (pos)
   "Create overlay covering the full logical line at POS."
