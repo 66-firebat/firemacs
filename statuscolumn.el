@@ -71,16 +71,14 @@ Built by `sc--build-mark-map' for the current buffer.")
 
 (defun sc--build-mark-map ()
   "Build map of line-beginning positions to Evil mark characters.
-  evil-markers-alist stores (CHAR . MARKER) — extract position via marker-position."
+Uses evil-get-marker which handles local (a-z) and global (A-Z) marks."
   (setq sc--mark-map (make-hash-table :test 'eql))
-  (when (bound-and-true-p evil-markers-alist)
-    (dolist (pair evil-markers-alist)
-      (let* ((char (car pair))
-             (marker (cdr pair))
-             (pos (cond ((numberp marker) marker)
-                        ((markerp marker) (marker-position marker)))))
-        (when (and pos (> pos 0) (<= pos (point-max)))
-          (let ((bol (save-excursion (goto-char pos) (line-beginning-position))))
+  (when (fboundp 'evil-get-marker)
+    (dolist (char (append (number-sequence ?a ?z) (number-sequence ?A ?Z)))
+      (let ((pos (evil-get-marker char)))
+        (when (and (numberp pos) (> pos 0) (<= pos (point-max)))
+          (let ((bol (save-excursion
+                       (goto-char pos) (line-beginning-position))))
             (unless (gethash bol sc--mark-map)
               (puthash bol (string char) sc--mark-map))))))))
 
