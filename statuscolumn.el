@@ -65,15 +65,49 @@ Maps 12.5%% bands to glyphs, same algorithm as doom-modeline."
      ((= band 7)    "󰪤")      ;;  87.5%% – 100%% (exclusive)
      (t             "󰪤"))))
 
-(defun sc--current-str ()
-  "Prefix for current line: slice icon ┣, or 󰠠 when ; jump is active."
-  (let ((icon (if sc--jump-active "󰠠" (sc--slice-icon))))
-    (concat (propertize (concat " " icon " ") 'face 'sc-current-face)
-            (propertize " ┣ " 'face 'sc-bump))))
+(defvar sc--mark-map nil
+  "Hash table: buffer position -> mark character string.
+Built by `sc--build-mark-map' for the current buffer.")
 
-(defun sc--lab-str (label)
-  (concat (propertize (concat " " label) 'face 'sc-label-face)
-          (propertize " ┃ " 'face 'sc-sep)))
+(defun sc--build-mark-map ()
+  "Build map of line-beginning positions to Evil mark characters.
+  evil-markers-alist stores (CHAR . MARKER) — extract position via marker-position."
+  (setq sc--mark-map (make-hash-table :test 'eql))
+  (when (bound-and-true-p evil-markers-alist)
+    (dolist (pair evil-markers-alist)
+      (let* ((char (car pair))
+             (marker (cdr pair))
+             (pos (cond ((numberp marker) marker)
+                        ((markerp marker) (marker-position marker)))))
+        (when (and pos (> pos 0) (<= pos (point-max)))
+          (let ((bol (save-excursion (goto-char pos) (line-beginning-position))))
+            (unless (gethash bol sc--mark-map)
+              (puthash bol (string char) sc--mark-map))))))))
+
+(defun sc--mark-face (mark)
+  "Propertized mark string with sc-label-face."
+  (propertize mark 'face 'sc-label-face))
+
+(defun sc--current-str (&optional mark)
+  "Prefix: space + icon + (mark or space) + ┣ + space.  Always 6 chars."
+  (let ((icon (if sc--jump-active "󰠠" (sc--slice-icon))))
+    (concat (propertize (concat " " icon) 'face 'sc-current-face)
+            (propertize " " 'face 'sc-current-face)
+            (if mark
+                (concat (propertize mark 'face 'sc-current-face)
+                        (propertize "┣ " 'face 'sc-bump))
+              (propertize " ┣ " 'face 'sc-bump)))))
+
+(defun sc--lab-str (label &optional mark)
+  "Label prefix, always 6 chars.
+  Single-char: ` a a┃ `, Double-char: `aa a┃ `, No mark: ` a  ┃ `."
+  (let* ((trimmed (string-trim-right label))
+         (one-char (= 1 (length trimmed))))
+    (concat (propertize (concat " " trimmed (if one-char " " "")) 'face 'sc-label-face)
+            (if mark
+                (concat (propertize mark 'face 'sc-label-face)
+                        (propertize "┃ " 'face 'sc-sep))
+              (propertize " ┃ " 'face 'sc-sep)))))
 
 (defun sc--sep-str ()
   "Padded separator for continuation lines — uses ┃ with gray sc-sep face."
@@ -107,10 +141,9 @@ Maps 12.5%% bands to glyphs, same algorithm as doom-modeline."
 (defun sc--rebuild ()
   (mapc #'delete-overlay sc--ovs)
   (setq sc--ovs nil)
-  ;; Buffer-local line-prefix: just separator.  Shows on continuation lines
-  ;; and as fallback for any line without an overlay.
   (setq-local line-prefix (sc--sep-str))
   (setq-local wrap-prefix (sc--sep-str))
+  (sc--build-mark-map)
   (let* ((win (get-buffer-window (current-buffer)))
          (cur (line-beginning-position))
          positions pairs new-ovs)
@@ -128,15 +161,14 @@ Maps 12.5%% bands to glyphs, same algorithm as doom-modeline."
           (setq positions (nreverse positions))
           (setq pairs (sc--make-pairs positions))
           (dolist (pair pairs)
-            (let ((lab (car pair)) (pos (cdr pair)))
+            (let* ((lab (car pair)) (pos (cdr pair))
+                   (mark (gethash pos sc--mark-map)))
               (let ((ov (sc--make-ov pos)))
                 (if (= pos cur)
-                    ;; Cursor line: show icon ┣
                     (progn
-                      (overlay-put ov 'line-prefix (sc--current-str))
+                      (overlay-put ov 'line-prefix (sc--current-str mark))
                       (overlay-put ov 'wrap-prefix (sc--bump-str)))
-                  ;; Non-cursor line: show LABEL ┃
-                  (overlay-put ov 'line-prefix (sc--lab-str lab)))
+                  (overlay-put ov 'line-prefix (sc--lab-str lab mark)))
                 (push ov new-ovs))))
           (setq sc--ovs new-ovs sc--pairs pairs
                 sc--last-bol cur))))))
