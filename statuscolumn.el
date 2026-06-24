@@ -127,6 +127,11 @@ Recent marks get exclusive priority over non-recent marks."
   "Propertized mark string with sc-label-face."
   (propertize mark 'face 'sc-label-face))
 
+;; Track all avy jumps in Evil's jump list so C-o/C-i work
+(when (fboundp 'avy-action-goto)
+  (advice-add 'avy-action-goto :before
+              (lambda (&rest _) (when (fboundp 'evil-set-jump) (evil-set-jump)))))
+
 (defun sc--current-str (&optional mark)
   "Prefix: space + (mark or space) + space + icon + space + ┣ + space.  7 chars."
   (let ((icon (if sc--jump-active "󰠠" (sc--slice-icon))))
@@ -289,7 +294,9 @@ Recent marks get exclusive priority over non-recent marks."
                            (when (null candidates) (user-error "No match")))))
               (quit () (user-error "Quit"))))
           (when candidates
-            (let ((target (cdar candidates))) (push-mark) (goto-char target)))))
+            (let ((target (cdar candidates)))
+              (when (fboundp 'evil-set-jump) (evil-set-jump))
+              (push-mark) (goto-char target)))))
     (setq sc--jump-active nil)
     (sc--rebuild)))
 
