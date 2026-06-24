@@ -205,6 +205,26 @@
   (load (expand-file-name "doom-modeline.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
+;;  6b.  Smooth Scrolling — Animated C-u/C-d/C-f/C-b via neoscroll
+;; ---------------------------------------------------------------------------
+
+;; Works in TTY terminals.  Replaces Evil's scroll commands with animated
+;; versions using sine easing.  Not true pixel scrolling (impossible in TTY).
+(let ((real-dir (file-name-directory
+                 (file-truename (or load-file-name buffer-file-name)))))
+  (load (expand-file-name "neoscroll.el" real-dir)))
+
+;; ---------------------------------------------------------------------------
+;;  6c.  Animated Cursor Motion — j/k/gg/G via scroll-on-jump
+;; ---------------------------------------------------------------------------
+
+;; Animates all point-moving commands by breaking jumps into smaller steps.
+;; Complements neoscroll (which handles C-u/C-d window scrolling).
+(let ((real-dir (file-name-directory
+                 (file-truename (or load-file-name buffer-file-name)))))
+  (load (expand-file-name "scroll-on-jump.el" real-dir)))
+
+;; ---------------------------------------------------------------------------
 ;;  7.  Modern Minibuffer Completion — Vertico + Consult + Marginalia
 ;; ---------------------------------------------------------------------------
 
