@@ -95,6 +95,7 @@
 ;; Recent files list
 (recentf-mode 1)
 (setq recentf-max-saved-items 100)
+(add-hook 'find-file-hook 'recentf-track-opened-file)
 
 ;; Don't show the Emacs startup screen
 (setq inhibit-startup-screen t)

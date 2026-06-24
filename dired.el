@@ -8,6 +8,16 @@
 ;;  - C-e toggles dired open/closed (defined in keybinds.el)
 ;; =============================================================================
 
+(use-package dired
+  :ensure nil
+  :custom
+  ;; -a: show hidden files (.git, etc.)
+  ;; -l: use long listing format (shows size and date)
+  ;; -h: human-readable sizes (e.g., 2K, 34M instead of raw bytes)
+  ;; -g: omit owner name
+  ;; -G: omit group name (in some ls versions, or use --no-group depending on OS)
+  (dired-listing-switches "-alhgG"))
+
 ;; Enable `dired-find-alternate-file' (it's disabled by default because it's
 ;; "dangerous", but we use it intentionally to reuse the dired buffer).
 (put 'dired-find-alternate-file 'disabled nil)

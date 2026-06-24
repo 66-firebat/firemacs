@@ -392,6 +392,8 @@ When called from inside dired:
   (general-def 'normal pi-coding-agent-chat-mode-map
     "q" 'pi-coding-agent-quit))
 
+;; ── Recent files ────────────────────────────────────────────────────────
+(global-set-key (kbd "C-c r") 'recentf-open-files)
 
 
 (provide 'keybinds)
