@@ -299,7 +299,6 @@ When called from inside dired:
 
   ;; Buffers
   "k k" '(my/switch-to-other-buffer :which-key "previous buffer")
-  "b d" '(kill-current-buffer :which-key "kill buffer")
   "b n" '(next-buffer :which-key "next buffer")
   "b p" '(previous-buffer :which-key "previous buffer")
 
@@ -350,7 +349,6 @@ When called from inside dired:
   ;; Toggle
   "t l" '(display-line-numbers-mode :which-key "toggle line numbers")
   "t w" '(whitespace-mode :which-key "toggle whitespace")
-  "t t" '(my/eat-new :which-key "new eat")
   "t p" '(pi-coding-agent-toggle :which-key "toggle pi")
 
   ;; Dired
@@ -393,7 +391,13 @@ When called from inside dired:
     "q" 'pi-coding-agent-quit))
 
 ;; ── Recent files ────────────────────────────────────────────────────────
-(global-set-key (kbd "C-c r") 'recentf-open-files)
+(global-set-key (kbd "C-c C-o") 'consult-recent-file)
+
+;; ── Spawn Eat terminal ────────────────────────────────────────
+(global-set-key (kbd "C-c C-i") 'my/eat-new)
+
+;; ── Kill current buffer ───────────────────────────────────────
+(global-set-key (kbd "C-c C-u") 'kill-current-buffer)
 
 
 (provide 'keybinds)
