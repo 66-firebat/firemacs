@@ -35,6 +35,19 @@
   "L" 'evil-last-non-blank
   "H" 'evil-first-non-blank)
 
+;; ── Select entire buffer (gg + V + G) ────────────────────────
+(defun my/select-whole-buffer ()
+  "Select the entire buffer in visual line mode.
+Equivalent to `gg V G` in Vim (go to first line, enter visual
+line mode, go to last line)."
+  (interactive)
+  (evil-goto-first-line)
+  (evil-visual-line)
+  (evil-goto-line nil))
+
+(general-def '(normal insert visual visual-block visual-line)
+  "C-a" 'my/select-whole-buffer)
+
 ;; ── Avy — jump to any visible character ────────────────────────
 ;; f + two chars → jump to that exact character pair
 ;; S + two chars → jump to that exact character pair

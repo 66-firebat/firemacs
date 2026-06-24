@@ -52,8 +52,9 @@ Background: #2b2b2b  Accent: #ff4400")
  `(cursor ((t (:background ,firebat-accent))))
  `(region ((t (:background "#444444" :foreground ,firebat-fg))))
  `(hl-line ((t (:background ,firebat-hl))))
- ;; Use :extend nil to remove background bleed from enclosures, introduced in Emacs 29
- `(show-paren-match ((t (:background ,firebat-region :foreground ,firebat-accent :weight bold :extend nil))))
+ ;; Paren matching — foreground only (no background, no underline, prevents bleed)
+ `(show-paren-match ((t (:foreground ,firebat-accent :extend nil))))
+ `(show-paren-match-expression ((t (:foreground ,firebat-accent :extend nil))))
  `(show-paren-mismatch ((t (:background ,firebat-accent :foreground ,firebat-fg))))
  `(minibuffer-prompt ((t (:foreground ,firebat-accent :weight bold))))
  `(vertical-border ((t (:foreground ,firebat-comment))))
@@ -208,11 +209,11 @@ Background: #2b2b2b  Accent: #ff4400")
  ;;  Diff-hl (left margin icons)
  ;; ═══════════════════════════════════════════════════════════════
 
- `(diff-hl-margin-insert ((t (:foreground ,firebat-accent))))
- `(diff-hl-margin-delete ((t (:foreground ,firebat-accent))))
- `(diff-hl-margin-change ((t (:foreground ,firebat-accent))))
- `(diff-hl-margin-unknown ((t (:foreground ,firebat-accent))))
- `(diff-hl-margin-ignored ((t (:foreground ,firebat-comment))))
+ `(diff-hl-margin-insert ((t (:foreground ,firebat-accent :background nil))))
+ `(diff-hl-margin-delete ((t (:foreground ,firebat-accent :background nil))))
+ `(diff-hl-margin-change ((t (:foreground ,firebat-accent :background nil))))
+ `(diff-hl-margin-unknown ((t (:foreground ,firebat-accent :background nil))))
+ `(diff-hl-margin-ignored ((t (:foreground ,firebat-comment :background nil))))
 
  ;; ═══════════════════════════════════════════════════════════════
  ;;  Centaur Tabs
