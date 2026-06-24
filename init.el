@@ -379,6 +379,15 @@
   (global-sc-mode 1))
 
 ;; ---------------------------------------------------------------------------
+;;  13a.  Global Jump Ring — C-o/C-i across all windows
+;; ---------------------------------------------------------------------------
+
+;; Replaces Evil's per-window jump lists with a single global jump ring.
+(let ((real-dir (file-name-directory
+                 (file-truename (or load-file-name buffer-file-name)))))
+  (load (expand-file-name "jumpring.el" real-dir)))
+
+;; ---------------------------------------------------------------------------
 ;;  13b.  Eat — Terminal Emulator
 ;; ---------------------------------------------------------------------------
 
