@@ -63,6 +63,9 @@
   (setq centaur-tabs-height 24)
   (setq centaur-tabs-bar-height (+ 8 centaur-tabs-height))
 
+  ;; ── New-tab button — disabled; replaced by overflow indicator ─
+  (setq centaur-tabs-show-new-tab-button nil)
+
   ;; ── Buffer grouping & ordering ───────────────────────────────
   ;; Group buffers by major-mode category.  Each group maintains a
   ;; creation-ordered list.  The current buffer is always the
@@ -105,9 +108,9 @@ The \"Buffers\" entry is a catch-all for unmatched modes.")
   ;; order (Emacs' native (buffer-list) ordering).
 
   (defun my/tab-buffer-list ()
-    "Return up to 6 buffers for centaur-tabs.
-Current buffer leftmost, followed by up to 5 most-recently-accessed
-buffers in the same group."
+    "Return all buffers in the same group as the current buffer.
+Current buffer leftmost, followed by remaining same-group buffers
+in MRU order (from `buffer-list')."
     (let* ((cur (current-buffer))
            (group (my/tab-group-for-buffer cur)))
       (when group
@@ -119,8 +122,7 @@ buffers in the same group."
                                        (buffer-list))))
                (pos (cl-position cur filtered)))
           (when pos
-            (let ((after (nthcdr (1+ pos) filtered)))
-              (cons cur (seq-take after 5))))))))
+            (cons cur (nthcdr (1+ pos) filtered)))))))
 
   (setq centaur-tabs-buffer-list-function #'my/tab-buffer-list)
   (setq centaur-tabs-cycle-scope 'tabs)
@@ -137,8 +139,7 @@ buffers in the same group."
 
   (defun my/centaur-tabs--sort-tabset-mru (tabset)
     "Sort tabs in TABSET into MRU order.
-Current buffer first, rest by (buffer-list) order.
-At most 6 tabs are kept."
+Current buffer first, rest by (buffer-list) order."
     (let* ((cur (current-buffer))
            (tabs (symbol-value tabset))
            (mru (seq-filter
@@ -150,7 +151,7 @@ At most 6 tabs are kept."
             (delq nil
                   (mapcar (lambda (b)
                             (cl-find b tabs :key #'car))
-                          (seq-take mru 6)))))
+                          mru))))
       (when ordered
         (set tabset ordered)
         (centaur-tabs-set-template tabset nil))))
@@ -183,24 +184,25 @@ Re-sort the current tabset into MRU order right before rendering."
   ;; Apply gradient colors AFTER centaur-tabs has applied its own faces.
   ;; This overrides the face on the final propertized strings.
   (defun my/centaur-tabs--apply-gradient (orig-fn tabset)
-    "Replace centaur-tabs' tab faces with gradient colours."
+    "Replace centaur-tabs' tab faces with gradient colours.
+Then truncate overflowing tabs and replace the new-tab button
+with a +N overflow indicator."
     (let* ((result (funcall orig-fn tabset))
            (tabs (and tabset (symbol-value tabset)))
            (colors ["#D4D4D4" "#BCBCBC" "#A4A4A4" "#8C8C8C" "#747474" "#5C5C5C"]))
       (when (and (consp result) (nth 2 result) tabs)
         (let ((elts (nth 2 result)))
+          ;; Apply gradient colours to ALL tabs (no 6-tab limit)
           (cl-loop for i from 0
                    for elt in elts
                    for tab in tabs
-                   do (when (< i 6)
-                        (let* ((bg (aref colors (min i 5)))
-                               ;; Strip centaur-tabs' trailing space so separators sit flush
-                               (stripped (if (string-suffix-p " " elt)
-                                             (substring elt 0 -1) elt)))
-                          (setf (nth i elts)
-                                (propertize stripped 'face
-                                            (list :background bg :foreground "#2b2b2b"))))))
-          ;; Always add    after the first tab, then   + tab for each subsequent
+                   do (let* ((bg (aref colors (min i 5)))
+                             (stripped (if (string-suffix-p " " elt)
+                                           (substring elt 0 -1) elt)))
+                        (setf (nth i elts)
+                              (propertize stripped 'face
+                                          (list :background bg :foreground "#2b2b2b")))))
+          ;; Build result-elts with separators (all tabs, no limit)
           (let ((result-elts (list (car elts)
                                   (propertize " " 'face
                                               (list :background (aref colors 0) :foreground "#2b2b2b")))))
@@ -211,6 +213,40 @@ Re-sort the current tabset into MRU order right before rendering."
                                        elt
                                        (propertize " " 'face
                                                    (list :background c :foreground "#2b2b2b"))))))
+            ;; ── Terminal width overflow truncation ─────────────
+            ;; Measure total width of group-icon + all tab elts.
+            ;; Drop rightmost tabs until it fits, showing +N.
+            (when my/centaur-tabs-overflow-adapt
+              (let* ((icon-str (my/centaur-tabs-group-icon))
+                     (icon-width (if icon-str (string-width icon-str) 0))
+                     (avail-width (floor (* (window-width)
+                                            my/centaur-tabs-width-factor)))
+                     (n-tabs (length tabs))
+                     (n-dropped 0)
+                     (total-width icon-width))
+                ;; Measure total width of all result-elts
+                (dolist (elt result-elts)
+                  (cl-incf total-width (string-width elt)))
+                ;; Drop tabs from the right until it fits or only 1 left
+                (while (and (> total-width avail-width)
+                            (> n-tabs 1)
+                            result-elts)
+                  (let ((last-three (last result-elts 3)))
+                    (when (= (length last-three) 3)
+                      (let ((w-sep  (string-width (nth 0 last-three)))
+                            (w-tab  (string-width (nth 1 last-three)))
+                            (w-trail (string-width (nth 2 last-three))))
+                        (setq result-elts (butlast result-elts 3)
+                              total-width (- total-width w-sep w-tab w-trail)
+                              n-tabs (1- n-tabs)
+                              n-dropped (1+ n-dropped))))))
+                ;; Add +N indicator if any tabs were dropped
+                (when (> n-dropped 0)
+                  (let ((overflow-str (format "+%d" n-dropped)))
+                    ;; Place overflow indicator at slot 4 (replacing new-tab button)
+                    (setcar (nthcdr 4 result)
+                            (propertize overflow-str
+                                        'face 'my/centaur-tabs-overflow-face))))))
             (setq elts result-elts))
           (setf (nth 2 result) elts)))
       result))
@@ -270,6 +306,23 @@ All use the same fixed colors (orange bg, dark fg, bold)."
 (defface my/centaur-tabs-group-face
   '((t (:foreground "#ff4400" :background "#2b2b2b" :weight bold)))
   "Face for the centaur-tabs group name segment."
+  :group 'centaur-tabs)
+
+;; ── Overflow indicator ────────────────────────────────────────
+
+(defvar my/centaur-tabs-width-factor 1.0
+  "Multiplier for perceived terminal width.
+The effective width for tab overflow calculations is
+(* (window-width) `my/centaur-tabs-width-factor').
+Set to a value lower than 1.0 to reserve space at the right edge.")
+
+(defvar my/centaur-tabs-overflow-adapt t
+  "When non-nil, tabs that overflow the terminal width are
+truncated and a +N overflow indicator is shown.")
+
+(defface my/centaur-tabs-overflow-face
+  '((t (:foreground "#ff4400" :background "#2b2b2b" :weight bold)))
+  "Face for the +N overflow indicator."
   :group 'centaur-tabs)
 
 ;; ── Git branch cache ───────────────────────────────────────────
