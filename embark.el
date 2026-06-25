@@ -47,43 +47,48 @@ Without prefix (C-d), refresh the candidate list in place and keep
 the minibuffer open."
     (interactive "P")
     (let* ((raw (vertico--candidate))
-           ;; Strip consult's internal "tofu" characters from the candidate
-           (candidate (if (and raw (fboundp 'consult--tofu-strip))
-                          (consult--tofu-strip raw)
-                        raw)))
-      (when-let ((buffer (and candidate (get-buffer candidate))))
-        ;; Kill the buffer without any prompts or confirmations
+           ;; Strip consult's internal "tofu" characters from the candidate.
+           ;; This gives us the plain buffer name, captured BEFORE kill.
+           (buf-name (if (and raw (fboundp 'consult--tofu-strip))
+                         (consult--tofu-strip raw)
+                       raw)))
+      (when-let ((buffer (and buf-name (get-buffer buf-name))))
+        ;; Save buffer name BEFORE killing — Emacs clears it on kill.
+        ;; Kill the buffer without any prompts or confirmations.
         (with-current-buffer buffer
           (let ((kill-buffer-query-functions nil))
             (set-buffer-modified-p nil)
             (kill-buffer)))
         (if arg
             ;; C-u: close the minibuffer and re-run consult-buffer via a timer.
-            ;; This gives consult-buffer a completely fresh start,
-            ;; guaranteeing the killed buffer won't appear.
             (let ((input (minibuffer-contents)))
               (abort-recursive-edit)
               (run-with-idle-timer 0.01 nil
                 (lambda ()
                   (let ((consult--buffer-history (list input)))
                     (consult-buffer)))))
-          ;; C-d: keep the minibuffer open.  Remove the killed buffer from
-          ;; vertico's candidate list by index and refresh the display.
-          ;; We can't use vertico--update here because the completion table
-          ;; is static (pre-computed by consult--multi at session start).
-          ;; Using delq on the nth element avoids any string-comparison
-          ;; pitfalls with tofu characters or text properties.
-          (let ((removed (nth vertico--index vertico--candidates)))
-            (setq vertico--candidates (delq removed vertico--candidates)
+          ;; C-d: keep the minibuffer open.  Scan vertico's candidate list
+          ;; and drop every entry whose tofu-stripped name matches the
+          ;; killed buffer.  The same buffer can live in multiple consult
+          ;; sources ("Previous", "Eat", etc.), each with a different
+          ;; source-index tofu — matching by name catches all of them.
+          (let ((remaining nil))
+            (dolist (c vertico--candidates)
+              (unless (string= (substring-no-properties
+                                (if (fboundp 'consult--tofu-strip)
+                                    (consult--tofu-strip c)
+                                  c))
+                               buf-name)
+                (push c remaining)))
+            (setq vertico--candidates (nreverse remaining)
                   vertico--total (length vertico--candidates))
-            ;; Adjust index: if we removed the last candidate, go to prompt
-            ;; position (-1); if we removed a candidate at or above the
-            ;; current index, step back by one.
+            ;; Adjust index: last candidate gone → prompt (-1);
+            ;; otherwise clamp to valid position.
             (if (zerop vertico--total)
                 (setq vertico--index -1)
               (when (>= vertico--index vertico--total)
                 (setq vertico--index (max 0 (1- vertico--total)))))
-            ;; Refresh the display directly, bypassing vertico--update
+            ;; Re-render the vertico list directly
             (vertico--prompt-selection)
             (vertico--display-count)
             (vertico--display-candidates (vertico--arrange-candidates)))))))
