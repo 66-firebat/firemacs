@@ -158,26 +158,18 @@ buffers in the same group."
                           (setf (nth i elts)
                                 (propertize stripped 'face
                                             (list :background bg :foreground "#2b2b2b"))))))
-          ;; Sep and cap alternate: odd i → uninverted, even i → inverted
-          (when (cdr elts)
-            (let ((result-elts (list (car elts)))
-                  (dir ""))
-              (cl-loop for i from 1 for elt in (cdr elts)
-                       do (let* ((c (aref colors (min i 5)))
-                                 (norm (list :background "#2b2b2b" :foreground c))
-                                 (inv  (list :background c :foreground "#2b2b2b")))
-                            ;; sep before tab
-                            (nconc result-elts
-                                   (list (propertize dir 'face (if (cl-oddp i) norm inv)) elt))
-                            (setq dir (if (string= dir "") "" ""))
-                            ;; cap after tab
-                            (if (cl-oddp i)
-                                (nconc result-elts
-                                       (list (propertize (concat "█" dir) 'face norm)))
-                              (nconc result-elts
-                                     (list (propertize "█" 'face norm)
-                                           (propertize dir 'face inv))))))
-              (setq elts result-elts)))
+          ;; Alwats add    after the first tab, then   + tab for each subsequent
+          (let ((result-elts (list (car elts)
+                                  (propertize "" 'face
+                                              (list :background (aref colors 0) :foreground "#2b2b2b")))))
+            (cl-loop for i from 1 for elt in (cdr elts)
+                     do (let* ((c (aref colors (min i 5))))
+                          (nconc result-elts
+                                 (list (propertize "" 'face (list :background c :foreground "#2b2b2b"))
+                                       elt
+                                       (propertize "" 'face
+                                                   (list :background c :foreground "#2b2b2b"))))))
+            (setq elts result-elts))
           (setf (nth 2 result) elts)))
       result))
 
@@ -300,7 +292,7 @@ Result is cached per project path."
                                (derived-mode-p 'vterm-mode)))))
          (prefix (if modified "󱍸 " "")))
     (if selected-p
-        (format " %s%s " prefix bufname)
+        (format " %s%s" prefix bufname)
       (format " %s%s " prefix bufname))))
 
 ;; ── Line number cache ─────────────────────────────────────────
