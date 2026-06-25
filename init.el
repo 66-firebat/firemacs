@@ -39,7 +39,42 @@
 (setq use-package-always-ensure t)
 
 ;; ---------------------------------------------------------------------------
-;;  2.  Sane Defaults — Clean Terminal UI
+;;  2.  Custom Module Loading — All configuration modules
+;; ---------------------------------------------------------------------------
+
+(defvar my/init-dir
+  (file-name-directory (file-truename (or load-file-name buffer-file-name)))
+  "Directory containing this init.el and all config modules.")
+
+(defun my/load-module (name)
+  "Load a configuration module from the config directory."
+  (load (expand-file-name name my/init-dir)))
+
+;; ── Core UI ─────────────────────────────────────────────────────────────────
+(my/load-module "statuscolumn.el")   ;; Statuscolumn with letter jump labels
+(global-sc-mode 1)                    ;; Activate globally
+(my/load-module "neoscroll.el")      ;; Smooth animated scrolling
+(my/load-module "panes.el")          ;; Window divider & wrap glyph
+(my/load-module "centaur-tabs.el")   ;; Aesthetic tab bar
+
+;; ── Navigation ──────────────────────────────────────────────────────────────
+(my/load-module "jumpring.el")       ;; Global C-o/C-i jump ring
+;; ── Terminal ────────────────────────────────────────────────────────────────
+(my/load-module "eat.el")            ;; Terminal emulator inside Emacs
+
+;; ── Editing ─────────────────────────────────────────────────────────────────
+(my/load-module "embark.el")         ;; Context-aware actions
+(my/load-module "dired.el")          ;; Dired customizations
+(my/load-module "diff-hl.el")        ;; Highlight uncommitted changes
+
+;; ── Misc ────────────────────────────────────────────────────────────────────
+(my/load-module "pi.el")             ;; AI coding agent frontend
+(my/load-module "wl-clipboard.el")   ;; Wayland clipboard integration
+(my/load-module "theme.el")          ;; Firebat theme
+(enable-theme 'firebat)
+
+;; ---------------------------------------------------------------------------
+;;  3.  Sane Defaults — Clean Terminal UI
 ;; ---------------------------------------------------------------------------
 
 ;; Disable GUI elements — these do nothing in -nw mode but don't hurt
@@ -108,7 +143,7 @@
             (setq gc-cons-threshold 800000)))
 
 ;; ---------------------------------------------------------------------------
-;;  3.  Evil Mode — Vim Emulation Everywhere
+;;  4.  Evil Mode — Vim Emulation Everywhere
 ;; ---------------------------------------------------------------------------
 
 ;; `evil` is the core vim emulation layer for Emacs.
@@ -152,7 +187,7 @@
   (evil-collection-init))
 
 ;; ---------------------------------------------------------------------------
-;;  3b.  Evil Cursor — Per-state terminal cursor colors
+;;  4b.  Evil Cursor — Per-state terminal cursor colors
 ;; ---------------------------------------------------------------------------
 
 (let ((real-dir (file-name-directory
@@ -160,7 +195,7 @@
   (load (expand-file-name "evil-cursor.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
-;;  3c.  Kitty Keyboard Protocol — Proper key encoding in terminal
+;;  4c.  Kitty Keyboard Protocol — Proper key encoding in terminal
 ;; ---------------------------------------------------------------------------
 
 ;; The kkp package decodes CSI-u escape sequences (used by Ghostty, kitty,
@@ -171,7 +206,7 @@
   :demand t
   :config
   (global-kkp-mode 1))
-;;  4.  Leader Key — SPC (Space) is our leader
+;;  5.  Leader Key — SPC (Space) is our leader
 ;; ---------------------------------------------------------------------------
 
 ;; `general` provides a clean way to define keybindings, including
@@ -193,7 +228,7 @@
   )
 
 ;; ---------------------------------------------------------------------------
-;;  5.  Which-Key — See available keybindings as you type
+;;  6.  Which-Key — See available keybindings as you type
 ;; ---------------------------------------------------------------------------
 
 ;; Shows a popup of possible keybindings after you press the leader key
@@ -205,7 +240,7 @@
   (setq which-key-idle-delay 0.5))  ;; Show after 0.5s of inactivity
 
 ;; ---------------------------------------------------------------------------
-;;  6.  Doom Modeline — A clean, informative mode line with Nerd Font icons
+;;  7.  Doom Modeline — A clean, informative mode line with Nerd Font icons
 ;; ---------------------------------------------------------------------------
 
 (let ((real-dir (file-name-directory
@@ -213,7 +248,7 @@
   (load (expand-file-name "doom-modeline.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
-;;  7.  Modern Minibuffer Completion — Vertico + Consult + Marginalia
+;;  8.  Modern Minibuffer Completion — Vertico + Consult + Marginalia
 ;; ---------------------------------------------------------------------------
 
 ;; Vertico provides a vertical completion UI for the minibuffer.
@@ -239,9 +274,7 @@
 
 ;; Orderless splits the input on spaces and matches each component
 ;; independently, enabling flexible filtering like "fo ba" → "foobar".
-(let ((real-dir (file-name-directory
-                 (file-truename (or load-file-name buffer-file-name)))))
-  (load (expand-file-name "orderless.el" real-dir)))
+(my/load-module "orderless.el")
 
 ;; Consult provides powerful search and navigation commands that
 ;; integrate with Vertico: consult-line, consult-grep, consult-buffer, etc.
@@ -256,8 +289,11 @@
   :config
   (setq consult-narrow-key "<"))
 
+;; Consult-buffer custom sources — loaded after consult is configured
+(my/load-module "consult-buffer.el")
+
 ;; ---------------------------------------------------------------------------
-;;  8.  Git — Magit
+;;  9.  Git — Magit
 ;; ---------------------------------------------------------------------------
 
 ;; Magit is the premier git interface for Emacs.
@@ -269,7 +305,7 @@
         'magit-display-buffer-fullframe-status-v1))
 
 ;; ---------------------------------------------------------------------------
-;;  9.  Language Support — Julia & Python
+;;  10.  Language Support — Julia & Python
 ;; ---------------------------------------------------------------------------
 
 ;; --- Julia ---
@@ -320,7 +356,7 @@
                                  "using LanguageServer; runserver()"))))
 
 ;; ---------------------------------------------------------------------------
-;;  10.  Org Mode — Notes, TODOs, Agenda
+;;  11.  Org Mode — Notes, TODOs, Agenda
 ;; ---------------------------------------------------------------------------
 
 (use-package org
@@ -363,7 +399,7 @@
   )
 
 ;; ---------------------------------------------------------------------------
-;;  11.  Avy — Jump to any visible character on screen
+;;  12.  Avy — Jump to any visible character on screen
 ;; ---------------------------------------------------------------------------
 
 ;; Avy lets you jump to any visible character by typing a short code.
@@ -376,7 +412,7 @@
   (setq avy-all-windows t))     ;; All windows on current frame
 
 ;; ---------------------------------------------------------------------------
-;;  12.  Project Management
+;;  13.  Project Management
 ;; ---------------------------------------------------------------------------
 
 (use-package project
@@ -384,135 +420,11 @@
   :config
   (setq project-vc-extra-root-markers '(".git" ".project" ".jlpm")))
 
-;; ---------------------------------------------------------------------------
-;;  13.  Status Column — Visual Line Numbers with Diff-hl Icons
-;; ---------------------------------------------------------------------------
-
-;; Uses Emacs' built-in C-based line numbering (no flicker, works everywhere)
-;; plus lightweight overlays for the ┃/┣ separator.  See statuscolumn.el.
-(let ((real-dir (file-name-directory
-                 (file-truename (or load-file-name buffer-file-name)))))
-  (load (expand-file-name "statuscolumn.el" real-dir))
-  ;; Activate the statuscolumn globally — enables C line numbers everywhere
-  (global-sc-mode 1))
+;; ── Keybinds — depends on evil, general, which-key being loaded first ──────
+(my/load-module "keybinds.el")
 
 ;; ---------------------------------------------------------------------------
-;;  13ab.  Smooth Scrolling — Animated C-u/C-d/C-f/C-b/C-y/C-e
-;; ---------------------------------------------------------------------------
-
-;; Bundles neoscroll.el for smooth animated scrolling. Intercepts
-;; evil-scroll-up/down/page-up/page-down/line-up/line-down with
-;; animated easing functions.  See neoscroll.el.
-(let ((real-dir (file-name-directory
-                 (file-truename (or load-file-name buffer-file-name)))))
-  (load (expand-file-name "neoscroll.el" real-dir)))
-
-;; ---------------------------------------------------------------------------
-;;  13a.  Global Jump Ring — C-o/C-i across all windows
-;; ---------------------------------------------------------------------------
-
-;; Replaces Evil's per-window jump lists with a single global jump ring.
-(let ((real-dir (file-name-directory
-                 (file-truename (or load-file-name buffer-file-name)))))
-  (load (expand-file-name "jumpring.el" real-dir)))
-
-;; ---------------------------------------------------------------------------
-;;  13b.  Eat — Terminal Emulator
-;; ---------------------------------------------------------------------------
-
-(let ((real-dir (file-name-directory
-                 (file-truename (or load-file-name buffer-file-name)))))
-  (load (expand-file-name "eat.el" real-dir)))
-
-;; ---------------------------------------------------------------------------
-;;  13c.  Diff-hl — Highlight Uncommitted Changes
-;; ---------------------------------------------------------------------------
-
-(let ((real-dir (file-name-directory
-                 (file-truename (or load-file-name buffer-file-name)))))
-  (load (expand-file-name "diff-hl.el" real-dir)))
-
-;; ---------------------------------------------------------------------------
-;;  13d.  Dired — Dired customizations
-;; ---------------------------------------------------------------------------
-
-(let ((real-dir (file-name-directory
-                 (file-truename (or load-file-name buffer-file-name)))))
-  (load (expand-file-name "dired.el" real-dir)))
-
-;; ---------------------------------------------------------------------------
-;;  13e.  Embark — Context-aware actions
-;; ---------------------------------------------------------------------------
-
-(let ((real-dir (file-name-directory
-                 (file-truename (or load-file-name buffer-file-name)))))
-  (load (expand-file-name "embark.el" real-dir)))
-
-;; ---------------------------------------------------------------------------
-;;  13f.  Keybinds — All custom keybindings
-;; ---------------------------------------------------------------------------
-
-(let ((real-dir (file-name-directory
-                 (file-truename (or load-file-name buffer-file-name)))))
-  (load (expand-file-name "keybinds.el" real-dir)))
-
-;; ---------------------------------------------------------------------------
-;;  13g.  Consult — Custom buffer sources
-;; ---------------------------------------------------------------------------
-
-(let ((real-dir (file-name-directory
-                 (file-truename (or load-file-name buffer-file-name)))))
-  (load (expand-file-name "consult-buffer.el" real-dir)))
-
-;; ---------------------------------------------------------------------------
-;;  13h.  Panes — Window Dividers
-;; ---------------------------------------------------------------------------
-
-(let ((real-dir (file-name-directory
-                 (file-truename (or load-file-name buffer-file-name)))))
-  (load (expand-file-name "panes.el" real-dir)))
-
-;; ---------------------------------------------------------------------------
-;;  13i.  Centaur Tabs — Aesthetic Tab Bar
-;; ---------------------------------------------------------------------------
-
-(let ((real-dir (file-name-directory
-                 (file-truename (or load-file-name buffer-file-name)))))
-  (load (expand-file-name "centaur-tabs.el" real-dir)))
-
-;; ---------------------------------------------------------------------------
-;;  13k.  Pi Coding Agent — AI-assisted coding frontend
-;; ---------------------------------------------------------------------------
-;; Pi is a coding agent CLI. pi-coding-agent wraps it in an Emacs interface
-;; with a Markdown chat buffer and a separate prompt composition buffer.
-;; Requires the Pi CLI installed and in PATH: npm install -g @earendil-works/pi-coding-agent
-;;
-;; Quick start: M-x pi  or  SPC p i
-;;
-(let ((real-dir (file-name-directory
-                 (file-truename (or load-file-name buffer-file-name)))))
-  (load (expand-file-name "pi.el" real-dir)))
-
-;; ---------------------------------------------------------------------------
-;;  14.  wl-clipboard — Wayland Clipboard
-;; ---------------------------------------------------------------------------
-
-(let ((real-dir (file-name-directory
-                 (file-truename (or load-file-name buffer-file-name)))))
-  (load (expand-file-name "wl-clipboard.el" real-dir)))
-
-;; ---------------------------------------------------------------------------
-;;  15.  Firebat Theme
-;; ---------------------------------------------------------------------------
-
-;; Load theme.el (defines the firebat theme), then enable it.
-(let ((real-dir (file-name-directory
-                 (file-truename (or load-file-name buffer-file-name)))))
-  (load (expand-file-name "theme.el" real-dir))
-  (enable-theme 'firebat))
-
-;; ---------------------------------------------------------------------------
-;;  15.  Final Touches
+;;  14.  Final Touches
 ;; ---------------------------------------------------------------------------
 
 ;; Save the custom-set-variables block to a separate file so we don't
