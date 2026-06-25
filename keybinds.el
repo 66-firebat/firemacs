@@ -58,6 +58,12 @@ line mode, go to last line)."
   ";" 'sc-avy-goto-line
   "gs" 'sc-avy-goto-line)
 
+;; ── s — consult-line search ─────────────────────────────────────
+;; Overrides evil-substitute (delete char + insert).  Use x then i
+;; to achieve the same effect, or SPC s s for the leader-key path.
+(general-def '(normal visual visual-block visual-line)
+  "s" 'consult-line)
+
 ;; ── C-i / TAB jump forward ─────────────────────────────────────
 ;; evil-want-C-i-jump t (init.el) handles TAB via evil-motion-state-map.
 ;; The kkp package (init.el) decodes C-i as [C-i] terminal-side; we
