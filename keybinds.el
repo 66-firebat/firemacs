@@ -53,7 +53,7 @@ line mode, go to last line)."
 ;; f + two chars → jump to that exact character pair
 ;; S + two chars → jump to that exact character pair (overridden below)
 ;; g s           → jump to a visible line number
-(general-def '(normal visual visual-block visual-line)
+(general-def '(normal visual visual-block visual-line operator)
   "f" 'sc-avy-goto-char-2
   ";" 'sc-avy-goto-line
   "gs" 'sc-avy-goto-line)
