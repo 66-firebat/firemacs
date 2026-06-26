@@ -237,9 +237,7 @@ SELECTED-P non-nil means this is the selected tab."
          (prefix   (if modified                                          ; OPEN 1 (if)
                       (propertize "󰐗 " 'face 'my/ct-modified)
                     ""))                                                 ; CLOSE 1 (if)
-         (label    (if selected-p                                        ; OPEN 1 (if)
-                      (format " %s%s" prefix bufname)
-                    (format " %s%s " prefix bufname))))                  ; CLOSE 1 (if)
+         (label    (format " %s%s" prefix bufname)))                 ; OPEN 1 (format)
     (propertize label                                                  ; OPEN 1 (propertize)
                 'face (if selected-p
                           'my/ct-tab-selected
@@ -263,20 +261,21 @@ SELECTED-P non-nil means this is the selected tab."
          (sel-buf  (cdr (assoc cur-group selected)))
          (tabs     bufs))
     (when tabs
-      (let* ((result
-              (list
-               (my/ct--tab-label (car tabs) (eq (car tabs) sel-buf))))
-             (rest (cdr tabs)))
-        (dolist (b rest)
-          (nconc result (list "  " " "
-                              (my/ct--tab-label b (eq b sel-buf)))))
-        ;; Colorize separators
-        (cl-loop for elt in result collect
-                 (if (or (equal elt "  ") (equal elt " "))
-                     (propertize elt 'face
-                                 (list :background "#5C5C5C"
-                                       :foreground "#2b2b2b"))
-                   elt))))))
+      (let ((result  (list (my/ct--tab-label (car tabs)
+                                             (eq (car tabs) sel-buf))))
+            (prev-selected (eq (car tabs) sel-buf)))
+        (dolist (b (cdr tabs))
+          (let ((selected-p (eq b sel-buf)))
+            (nconc result
+                   (list (propertize "  " 'face
+                                     (my/ct--tab-face prev-selected))
+                         (my/ct--tab-label b selected-p)))
+            (setq prev-selected selected-p)))
+        ;; Trailing  on last tab, colored with that tab's face
+        (nconc result
+               (list (propertize "  " 'face
+                                 (my/ct--tab-face prev-selected))))
+        result))))
 
 ;; ╔══════════════════════════════════════════════════════════════╗
 ;; ║  SECTION 6 — Group icon rendering                           ║
