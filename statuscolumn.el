@@ -356,10 +356,16 @@ Fires during redisplay, right after window-start changes."
 
 ;;;###autoload
 (defun sc-avy-goto-char-2 ()
-  "Like `avy-goto-char-2' but shows bolt icon (󰠠) in statuscolumn."
+  "Like `avy-goto-char-2' but shows bolt icon (󰠠) in statuscolumn.
+Saves current position to the Evil jumplist before jumping."
   (interactive)
   (let ((in-visual (and (fboundp 'evil-visual-state-p)
                         (evil-visual-state-p))))
+    ;; Save current position to jumplist (non-visual only;
+    ;; visual-mode uses the anchor/mark approach below).
+    (unless in-visual
+      (when (fboundp 'evil-set-jump) (evil-set-jump))
+      (push-mark))
     ;; Same anchor setup as sc-avy-goto-line so that after the
     ;; `avy-goto-char-2' jump, `evil-visual-refresh' extends the
     ;; selection from the anchor to the new point.
