@@ -55,7 +55,7 @@
 (global-sc-mode 1)                    ;; Activate globally
 (my/load-module "neoscroll.el")      ;; Smooth animated scrolling
 (my/load-module "panes.el")          ;; Window divider & wrap glyph
-(my/load-module "centaur-tabs.el")   ;; Aesthetic tab bar
+(my/load-module "MRU-tabs.el")        ;; MRU-based tab bar
 
 ;; ── Navigation ──────────────────────────────────────────────────────────────
 (my/load-module "jumpring.el")       ;; Global C-o/C-i jump ring
