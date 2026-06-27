@@ -102,8 +102,10 @@ Truncates the branch name according to
   (doom-modeline-def-segment my-git-branch
     "Git branch name and short commit hash: <branch>: <hash>"
     (let ((info (my/get-git-branch-info)))
-      (propertize (concat "█" (doom-modeline-spc) info " ")
-                  'face 'doom-modeline-git-branch)))
+      (concat (propertize " "
+                          'face '(:foreground "#ff4400" :background "#2b2b2b"))
+              (propertize (concat (doom-modeline-spc) info " ")
+                          'face 'doom-modeline-git-branch))))
 
   ;; Terminal-friendly tweaks
   (setq doom-modeline-height 1)
