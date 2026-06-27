@@ -29,12 +29,12 @@
 
   ;; Helper: git diff stats string
   (defun my/gitsigns-str ()
-    "Return git diff stats: 󰐗 N 󱍷 M 󰅙 K, or 󰵚 for non-VC buffers.
+    "Return git diff stats:  N  M  K, or 󱃓 for non-VC buffers.
 Parses the full diff at hunk level so modifications are counted
 as changes, not split into insertions+deletions."
     (if (or (not buffer-file-name)
             (not (ignore-errors (vc-backend buffer-file-name))))
-        "󰵚"
+        "󱃓 "
       (condition-case nil
           (let* ((file buffer-file-name)
                  (default-directory (file-name-directory file))
@@ -58,9 +58,9 @@ as changes, not split into insertions+deletions."
                         ((> hunk-inserts 0)
                          (cl-incf inserts hunk-inserts))))))  ;; pure insertion
             (if (> (+ inserts changes deletes) 0)
-                (format "󰐗 %d 󱍷 %d 󰅙 %d" inserts changes deletes)
-              "󰵚"))
-        (error "󰵚"))))
+                (format " %d  %d  %d" inserts changes deletes)
+              "󱃓 "))
+        (error "󱃓 "))))
 
   ;; Truncation variable for branch name
   (defvar my/doom-modeline-git-branch-truncate nil
@@ -95,7 +95,7 @@ Truncates the branch name according to
 
   ;; Git diff stats segment
   (doom-modeline-def-segment my-gitsigns
-    "Git diff stats:  N  M  K"
+    "Git diff stats:  N  M  K"
     (let ((str (my/gitsigns-str)))
       (when str
         (concat (doom-modeline-spc) str))))
@@ -130,11 +130,11 @@ Truncates the branch name according to
   ;; Redefine the main modeline.
   (doom-modeline-def-modeline 'main
     '(eldoc bar window-state workspace-name window-number
-            modals matches follow my-buffer-info my-gitsigns remote-host)
+            modals matches follow my-buffer-info remote-host)
     '(compilation objed-state misc-info project-name persp-name
                   battery grip irc mu4e gnus github debug repl
                   minor-modes input-method indent-info buffer-encoding
-                  process check time my-git-branch))
+                  process check time my-gitsigns my-git-branch))
   ;; Apply the redefined modeline
   (doom-modeline-set-modeline 'main t))
 
