@@ -205,7 +205,49 @@
   :ensure t
   :demand t
   :config
-  (global-kkp-mode 1))
+  (global-kkp-mode 1)
+
+  ;; When running as daemon + emacsclient, KKP might not initialize properly
+  ;; because the terminal doesn't exist yet at load time. Force re-init when
+  ;; a new terminal frame appears.
+  (defun my/kkp-ensure-active ()
+    "Ensure KKP is active in the current terminal.
+Re-runs setup if the terminal was visited but KKP isn't active."
+    (when (and (boundp 'kkp--active-terminal-list)
+               (boundp 'kkp--setup-visited-terminal-list)
+               (not (display-graphic-p)))
+      (let ((terminal (frame-terminal (selected-frame))))
+        (when (and (terminal-live-p terminal)
+                   (not (member terminal kkp--active-terminal-list))
+                   (member terminal kkp--setup-visited-terminal-list))
+          ;; Terminal was visited but setup never completed — retry
+          (setq kkp--setup-visited-terminal-list
+                (delete terminal kkp--setup-visited-terminal-list))
+          (kkp-enable-in-terminal terminal)))))
+
+  ;; Run on every frame switch to catch the daemon->client transition
+  (add-function :after after-focus-change-function
+                (lambda (&rest _) (my/kkp-ensure-active)))
+
+  ;; Also run after server-visit-hook (when emacsclient connects)
+  (with-eval-after-load 'server
+    (add-hook 'server-visit-hook #'my/kkp-ensure-active))
+
+  ;; Interactive restart command
+  (defun my/kkp-restart ()
+    "Restart KKP in the current terminal."
+    (interactive)
+    (let ((terminal (frame-terminal (selected-frame))))
+      (when (boundp 'kkp--active-terminal-list)
+        ;; Tear down if active
+        (when (member terminal kkp--active-terminal-list)
+          (kkp--terminal-teardown terminal))
+        ;; Reset visited status so focus-change re-enables
+        (when (boundp 'kkp--setup-visited-terminal-list)
+          (setq kkp--setup-visited-terminal-list
+                (delete terminal kkp--setup-visited-terminal-list)))
+        (kkp-enable-in-terminal terminal)
+        (message "KKP restart triggered — check *Messages* for [KKP] logs")))))
 ;;  5.  Leader Key — SPC (Space) is our leader
 ;; ---------------------------------------------------------------------------
 

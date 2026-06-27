@@ -43,9 +43,9 @@ line mode, go to last line)."
   (interactive)
   (evil-goto-first-line)
   (evil-visual-line)
-  (evil-goto-line nil))
+  (evil-goto-line (line-number-at-pos (point-max))))
 
-(general-def '(normal insert visual visual-block visual-line)
+(general-def '(normal visual visual-block visual-line)
   "C-a" 'my/select-whole-buffer)
 
 ;; ── Avy — jump to any visible character ────────────────────────
@@ -408,6 +408,66 @@ When called from inside dired:
 ;; ── Kill current buffer ───────────────────────────────────────
 (global-set-key (kbd "C-c C-u") 'kill-current-buffer)
 
+
+;; ═════════════════════════════════════════════════════════════════
+;;  C-a Diagnostic Command
+;; ═════════════════════════════════════════════════════════════════
+;; Run M-x my/diagnose-c-a after C-a y to see what's on the clipboard.
+
+(defun my/diagnose-c-a ()
+  "Diagnose what\='s on the clipboard after C-a y.
+Shows the clipboard content, KKP status, and key binding info."
+  (interactive)
+  (let* ((kr-len (length kill-ring))
+         (kr-top (if (car kill-ring)
+                    (substring-no-properties (car kill-ring) 0 (min 100 (length (car kill-ring))))
+                  "(empty)"))
+         (kr-top-full (car kill-ring))
+         (wl-copy-alive (and (boundp 'wl-copy-process)
+                             (process-live-p wl-copy-process)))
+         ;; Actually read the system clipboard by shelling out directly
+         (sys-clip (condition-case nil
+                       (let ((result (shell-command-to-string "wl-paste -n 2>/dev/null | tr -d \\\\r | head -c 100")))
+                         (if (string-empty-p result) "(empty)" result))
+                     (error "(wl-paste failed)")))
+         (kkp-active (bound-and-true-p kkp--active-terminal-list))
+         (kkp-visited (bound-and-true-p kkp--setup-visited-terminal-list))
+         (ca-normal (lookup-key evil-normal-state-map (kbd "C-a")))
+         (ca-visual (lookup-key evil-visual-state-map (kbd "C-a")))
+         (buf-size (buffer-size))
+         (buf-preview (buffer-substring-no-properties
+                       (point-min) (min (point-max) (+ (point-min) 100))))
+         (has-8-6u-kill (and (car kill-ring)
+                             (string-match-p "8;6u" (car kill-ring))))
+         (has-8-6u-buf (save-excursion
+                         (goto-char (point-min))
+                         (search-forward "8;6u" nil t)))
+         (has-8-6u-clip (string-match-p "8;6u" sys-clip)))
+    (message "
+╔══ C-a Diagnostic ═══════════════════════════════════════╗
+║ KKP active:          %s       ║
+║ KKP visited:         %s       ║
+║ C-a in normal map:   %s       ║
+║ interprogram-cut-fn: %s       ║
+║ wl-copy process live:%s       ║
+║ Kill-ring entries:   %d       ║
+║ Kill-ring top:       %s       ║
+║ 8;6u in kill-ring:   %s       ║
+║ System clipboard:    %s       ║
+║ 8;6u in clipboard:   %s       ║
+║ Buffer contains 8;6u:%s       ║
+║ Buffer size:         %d chars       ║
+║ Buffer preview:      %s       ║
+╚════════════════════════════════════════════════════════╝"
+             kkp-active kkp-visited ca-normal
+             interprogram-cut-function
+             (if wl-copy-alive "YES" "no")
+             kr-len kr-top
+             (if has-8-6u-kill "YES!" "no")
+             sys-clip
+             (if has-8-6u-clip "YES!" "no")
+             (if has-8-6u-buf "YES!" "no")
+             buf-size buf-preview)))
 
 (provide 'keybinds)
 ;; keybinds.el ends here
