@@ -64,27 +64,25 @@ line mode, go to last line)."
 ;; evil-motion-range sees no region and falls through to the
 ;; default point-movement based range calculation.
 
-(evil-define-motion my/avy-goto-char-2-motion (count)
-  "Jump to a visible character pair using avy.
+(evil-define-motion my/avy-goto-char-motion (count)
+  "Jump to a visible character using avy.
 Works in operator-pending mode (df, yf, cf, etc.)."
   :type inclusive
   :jump t
-  (let ((c1 (read-char "char 1: " t))
-        (c2 (read-char "char 2: " t)))
+  (let ((c (read-char "char: " t)))
     (setq mark-active nil)
     (condition-case nil
-        (avy-goto-char-2 c1 c2 count nil nil)
+        (avy-goto-char c count)
       (error nil))
-    ;; clear the mark that avy--goto's push-mark created
     (setq mark-active nil)))
 
 (general-def '(normal visual visual-block visual-line)
-  "f" 'sc-avy-goto-char-2
+  "f" 'avy-goto-char
   ";" 'sc-avy-goto-line
   "gs" 'sc-avy-goto-line)
 
 (general-def '(operator)
-  "f" 'my/avy-goto-char-2-motion)
+  "f" 'my/avy-goto-char-motion)
 
 ;; ── s / S — consult search ──────────────────────────────────────
 ;; s   → consult-line   (search current buffer)
