@@ -67,6 +67,9 @@
 (my/load-module "dired.el")          ;; Dired customizations
 (my/load-module "diff-hl.el")        ;; Highlight uncommitted changes
 
+;; ── Languages ───────────────────────────────────────────────
+(my/load-module "julia.el")         ;; Julia tree-sitter mode
+
 ;; ── Misc ────────────────────────────────────────────────────────────────────
 
 (my/load-module "pi.el")             ;; AI coding agent frontend
@@ -351,14 +354,6 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 ;;  10.  Language Support — Julia & Python
 ;; ---------------------------------------------------------------------------
 
-;; --- Julia ---
-(use-package julia-mode
-  :defer t
-  :mode ("\\.jl\\'" . julia-mode)
-  :config
-  ;; Enable LSP via Eglot (built into Emacs 29+)
-  (add-hook 'julia-mode-hook 'eglot-ensure))
-
 ;; --- Python ---
 (use-package python
   :defer t
@@ -381,9 +376,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
   (add-hook 'python-mode-hook (lambda ()
                                 (when (treesit-ready-p 'python)
                                   (python-ts-mode))))
-  (add-hook 'julia-mode-hook (lambda ()
-                               (when (treesit-ready-p 'julia)
-                                 (julia-ts-mode)))))
+  )
 
 ;; --- Common LSP settings (Eglot) ---
 (use-package eglot
@@ -392,11 +385,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
   (setq eglot-autoshutdown t)         ;; Shut down LSP when last buffer closes
   (setq eglot-events-buffer-size 0)   ;; Disable LSP event log (speed)
   (setq eglot-sync-connect nil)       ;; Connect asynchronously
-  ;; Julia LSP: requires LanguageServer.jl installed
-  ;; Install with: using Pkg; Pkg.add("LanguageServer")
-  (add-to-list 'eglot-server-programs
-               '((julia-mode) . ("julia" "--project=@." "-e"
-                                 "using LanguageServer; runserver()"))))
+)
 
 ;; ---------------------------------------------------------------------------
 ;;  11.  Org Mode — Notes, TODOs, Agenda
