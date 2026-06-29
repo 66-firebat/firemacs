@@ -66,6 +66,7 @@ line mode, go to last line)."
   "Like `avy-goto-char' but shows bolt icon in statuscolumn."
   (interactive)
   (let ((sc--jump-active t))
+    (when (fboundp 'evil-set-jump) (evil-set-jump))
     (sc--init)
     (unwind-protect
         (call-interactively 'avy-goto-char)
@@ -76,6 +77,7 @@ line mode, go to last line)."
   "Like `avy-goto-char-timer' but shows bolt icon in statuscolumn."
   (interactive)
   (let ((sc--jump-active t))
+    (when (fboundp 'evil-set-jump) (evil-set-jump))
     (sc--init)
     (unwind-protect
         (call-interactively 'avy-goto-char-timer)
