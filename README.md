@@ -45,7 +45,7 @@ Launch with: `emacs -nw`
 | `C-e` | normal, insert, visual, motion, emacs | my/dired-from-eat | Toggle dired at eat cwd |
 | `C-;` | any | embark-act | Context actions on completion |
 | `C-c C-o` | any | consult-recent-file | Recent files |
-| `C-c C-i` | any | my/eat-new | Spawn new Eat terminal |
+| `C-c C-t` | any | my/eat-new | Spawn new Eat terminal (uses symbolic `<C-t>` for kkp) |
 | `C-c C-u` | any | kill-current-buffer | Kill current buffer |
 
 ### SPC Leader (press `SPC` in normal/visual mode, `C-SPC` in insert/emacs mode)

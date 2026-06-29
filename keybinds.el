@@ -550,7 +550,10 @@ When called from inside dired:
 (global-set-key (kbd "C-c C-p") 'find-file)
 
 ;; ── Spawn Eat terminal ────────────────────────────────────────
-(global-set-key (kbd "C-c C-i") 'my/eat-new)
+;; Bound in the override keymap so it takes precedence over ALL
+;; mode-specific bindings (sh-mode's sh-tmp-file, etc.)
+(general-def :keymaps 'override
+  "C-c C-t" 'my/eat-new)
 
 ;; ── Eat compose (from inside eat buffer) ─────────────────────
 ;; Note: C-c C-e is taken by eat's own `eat-emacs-mode' (makes buffer
