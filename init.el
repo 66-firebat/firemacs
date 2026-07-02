@@ -185,6 +185,7 @@
 ;; all respond to vim keys. Without it, only evil-mode buffers
 ;; would have vim bindings.
 (use-package evil-collection
+  :ensure t
   :after evil
   :demand t
   :config
@@ -258,6 +259,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 ;; `general` provides a clean way to define keybindings, including
 ;; leader-key prefixes. It replaces Emacs' more verbose `define-key`.
 (use-package general
+  :ensure t
   :demand t
   :config
   ;; Define the leader key:
