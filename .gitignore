@@ -1,0 +1,17 @@
+# Ignore the specific auto-save directory and its contents
+auto-save-list/
+
+# Ignore Emacs backup files (files ending in ~)
+*~
+
+# Ignore auto-save files (files starting and ending with #)
+\#*\#
+
+# Ignore lock files (files starting with .#)
+.\#*
+
+# Optional: Ignore the elpa/ package directory if you don't want to commit packages
+elpa/
+
+# Optional: Ignore transient runtime files like recentf
+recentf
