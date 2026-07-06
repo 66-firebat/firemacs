@@ -2,7 +2,7 @@
 
 A terminal-first Emacs configuration with Evil (Vim emulation), a custom statuscolumn with permanent letter jump labels, MRU-based tab bar, smooth scrolling, and integrated terminal emulator. Built for the Firebat theme (#2b2b2b background, #ff4400 accent).
 
-Launch with: `emacs -nw`
+Launch with: `emacs -nw --init-directory <custom-emacs-directory>`
 
 ---
 

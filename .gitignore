@@ -13,5 +13,7 @@ auto-save-list/
 # Optional: Ignore the elpa/ package directory if you don't want to commit packages
 elpa/
 
-# Optional: Ignore transient runtime files like recentf
+# Optional: Ignore transient runtime files like recentf and places
 recentf
+
+places

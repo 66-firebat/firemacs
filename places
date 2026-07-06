@@ -1,5 +1,27 @@
 ;;; -*- coding: utf-8; mode: lisp-data -*-
-(("/etc/nixos/x1p42100-nixos/git_repositories/emacs/init.el" . 988)
+(("/etc/nixos/x1p42100-nixos/git_repositories/bash/.bashrc" . 15187)
+ ("/etc/nixos/x1p42100-nixos/modules/packages.nix" . 660)
+ ("/etc/nixos/x1p42100-nixos/home.nix" . 2306)
+ ("/etc/nixos/x1p42100-nixos/git_repositories/emacs/emacs.desktop"
+  . 299)
+ ("/etc/nixos/x1p42100-nixos/git_repositories/emacs/.gitignore" . 401)
  ("/etc/nixos/x1p42100-nixos/git_repositories/emacs/"
   (dired-filename
-   . "/etc/nixos/x1p42100-nixos/git_repositories/emacs/init.el")))
+   . "/etc/nixos/x1p42100-nixos/git_repositories/emacs/emacs.desktop"))
+ ("/etc/nixos/x1p42100-nixos/modules/"
+  (dired-filename . "/etc/nixos/x1p42100-nixos/modules/packages.nix"))
+ ("/etc/nixos/x1p42100-nixos/"
+  (dired-filename . "/etc/nixos/x1p42100-nixos/modules"))
+ ("/etc/" (dired-filename . "/etc/alsa"))
+ ("/etc/nixos/x1p42100-nixos/git_repositories/bash/"
+  (dired-filename
+   . "/etc/nixos/x1p42100-nixos/git_repositories/bash/.bashrc"))
+ ("/etc/nixos/x1p42100-nixos/git_repositories/"
+  (dired-filename . "/etc/nixos/x1p42100-nixos/git_repositories/bash"))
+ ("/etc/nixos/x1p42100-nixos/git_repositories/assets/"
+  (dired-filename
+   . "/etc/nixos/x1p42100-nixos/git_repositories/assets/DMS_files"))
+ ("/etc/nixos/x1p42100-nixos/git_repositories/assets/DMS_files/"
+  (dired-filename
+   . "/etc/nixos/x1p42100-nixos/git_repositories/assets/DMS_files/fireshark.json"))
+ ("/etc/nixos/x1p42100-nixos/git_repositories/emacs/init.el" . 988))
