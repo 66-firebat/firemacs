@@ -143,9 +143,9 @@ Works in operator-pending mode (dF, yF, cF, etc.)."
   "Index of the most recently spawned eat terminal.")
 
 (defun my/eat-next-available ()
-  "Return the lowest unused eat index (0, 1, 2, ...).
+  "Return the lowest unused eat index (1, 2, 3, ...).
 Scans all buffer names for \"<N> \" prefixes."
-  (let ((i 0))
+  (let ((i 1))
     (while (let ((target (format "%d " i)))
              (catch 'exists
                (dolist (b (buffer-list) nil)
