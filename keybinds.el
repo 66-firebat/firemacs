@@ -620,6 +620,9 @@ When called from inside dired:
 ;; ── Kill current buffer ───────────────────────────────────────
 (global-set-key (kbd "C-c C-u") 'kill-current-buffer)
 
+;; ── Grease — Oil.nvim-style file manager ─────────────────────
+(global-set-key (kbd "C-c C-g") 'grease-toggle)
+
 
 ;; ═════════════════════════════════════════════════════════════════
 ;;  C-a Diagnostic Command

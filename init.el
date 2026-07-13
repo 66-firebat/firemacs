@@ -436,6 +436,9 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 (my/load-module "dired.el")          ;; Dired customizations
 (my/load-module "diff-hl.el")        ;; Highlight uncommitted changes
 
+;; ── File Manager ────────────────────────────────────────────────
+(my/load-module "grease.el")       ;; Oil.nvim-style writable file manager
+
 ;; ── Orderless Completion Addons ─────────────────────────────────────────────
 (my/load-module "orderless.el")      ;; Flexible completion style
 (my/load-module "consult-buffer.el") ;; Custom sources loaded after consult
