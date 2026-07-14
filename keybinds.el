@@ -610,7 +610,7 @@ When called from inside dired:
 ;; Bound in the override keymap so it takes precedence over ALL
 ;; mode-specific bindings (sh-mode's sh-tmp-file, etc.)
 (general-def :keymaps 'override
-  "C-c C-t" 'my/eat-new)
+  "M-l" 'my/eat-new)
 
 ;; ── Eat compose (from inside eat buffer) ─────────────────────
 ;; Note: C-c C-e is taken by eat's own `eat-emacs-mode' (makes buffer
@@ -621,7 +621,8 @@ When called from inside dired:
 (global-set-key (kbd "C-c C-u") 'kill-current-buffer)
 
 ;; ── Grease — Oil.nvim-style file manager ─────────────────────
-(global-set-key (kbd "M-e") 'grease-toggle)
+(general-def :keymaps 'override
+  "M-e" 'grease-toggle)
 
 
 ;; ═════════════════════════════════════════════════════════════════
