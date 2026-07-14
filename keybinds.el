@@ -608,9 +608,24 @@ When called from inside dired:
 
 ;; ── Spawn Eat terminal ────────────────────────────────────────
 ;; Bound in the override keymap so it takes precedence over ALL
-;; mode-specific bindings (sh-mode's sh-tmp-file, etc.)
+;; mode-specific bindings (sh-mode's sh-tmp-file, etc.).  Define the global shortcut using general.el
 (general-def :keymaps 'override
   "M-l" 'my/eat-new)
+
+;; 2. Tell Eat to ignore Alt+l in semi-char mode so Emacs can handle it
+;;
+;; NOTE: eat-update-semi-char-mode-map creates a NEW keymap object, but
+;; define-minor-mode captures the old one by value.  We must unbind M-l
+;; directly from the keymap that the minor mode actually references.
+(with-eval-after-load 'eat
+  ;; Keep the non-bound-keys list in sync for correctness
+  (add-to-list 'eat-semi-char-non-bound-keys '[?\e ?l])
+  ;; Unbind from the semi-char mode keymap used by the minor mode
+  (define-key eat-semi-char-mode-map (kbd "M-l") nil)
+  ;; If the minor mode captured a separate keymap object, update it
+  (when (and (boundp 'eat--semi-char-mode-map)
+             (not (eq eat--semi-char-mode-map eat-semi-char-mode-map)))
+    (define-key eat--semi-char-mode-map (kbd "M-l") nil)))
 
 ;; ── Eat compose (from inside eat buffer) ─────────────────────
 ;; Note: C-c C-e is taken by eat's own `eat-emacs-mode' (makes buffer

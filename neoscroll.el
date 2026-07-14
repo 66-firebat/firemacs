@@ -277,7 +277,7 @@
 
 ;; Rebuild statuscolumn after each neoscroll animation step.
 (advice-add 'neoscroll--scroll-one-step :after
-            (lambda (&rest _) (with-demoted-errors (sc--init))))
+            (lambda (&rest _) (with-demoted-errors "sc--init error: %S" (sc--init))))
 
 (provide 'neoscroll)
 ;; neoscroll.el ends here
