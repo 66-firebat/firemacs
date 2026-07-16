@@ -86,8 +86,8 @@
 ;; Standard display table (global fallback)
 (let ((table (or standard-display-table
                  (setq standard-display-table (make-display-table)))))
-  (set-display-table-slot table 'wrap (make-glyph-code ?- 'panes-wrap-glyph))
-  (set-display-table-slot table 'truncation (make-glyph-code ?- 'panes-wrap-glyph)))
+  (set-display-table-slot table 'wrap (make-glyph-code ?· 'panes-wrap-glyph))
+  (set-display-table-slot table 'truncation (make-glyph-code ?· 'panes-wrap-glyph)))
 
 ;; Buffer-local display tables in terminal emulators that
 ;; shadow the standard display table.
@@ -98,9 +98,9 @@
                                     (setq buffer-display-table
                                           (make-display-table)))))
                 (set-display-table-slot table 'wrap
-                                        (make-glyph-code ?- 'panes-wrap-glyph))
+                                        (make-glyph-code ?· 'panes-wrap-glyph))
                 (set-display-table-slot table 'truncation
-                                        (make-glyph-code ?- 'panes-wrap-glyph))))))
+                                        (make-glyph-code ?· 'panes-wrap-glyph))))))
 
 ;; Initial border layout
 (panes-update-window-borders)

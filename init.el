@@ -440,6 +440,10 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 ;; ── File Manager ────────────────────────────────────────────────
 (setq grease-show-hidden t)          ;; Show hidden files (dotfiles) in grease
 (my/load-module "grease/grease.el")       ;; Oil.nvim-style writable file manager
+(setq grease-visit-alt-directory-callback   ;; Shift+Enter on dir → eat terminal
+      (lambda (dir)
+        (let ((default-directory dir))
+          (call-interactively #'eat))))
 
 ;; ── Orderless Completion Addons ─────────────────────────────────────────────
 (my/load-module "orderless.el")      ;; Flexible completion style

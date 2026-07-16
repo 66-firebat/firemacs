@@ -226,13 +226,14 @@ Buffer is named like \"0  19950\" (index +  + PID)."
   (let ((index (my/eat-next-available))
         (shell (or explicit-shell-file-name
                    (getenv "ESHELL")
-                   shell-file-name)))
+                   shell-file-name))
+        (cwd default-directory))
     (setq my-eat-index-cache index)
     (let ((buf-name (format "%d  waiting" index)))
       (with-current-buffer (get-buffer-create buf-name)
+        (setq default-directory cwd)
         (eat-mode)
         (pop-to-buffer-same-window (current-buffer))
-        ;; Start the terminal process (if not already running)
         (unless (and eat-terminal
                      (eat-term-parameter eat-terminal 'eat--process))
           (eat-exec (current-buffer) (buffer-name)
