@@ -338,6 +338,18 @@ between commands, not within them — the delete+create is atomic."
                 sc--last-tick (buffer-chars-modified-tick)))))))
 
 ;; ═════════════════════════════════════════════════════════════════════════════
+;;  Window scroll — fires BEFORE redisplay with new window-start already set
+;; ═════════════════════════════════════════════════════════════════════════════
+
+(defun sc--on-window-scroll (window _new-start)
+  "Rebuild overlays when WINDOW scrolls.
+Fires before the scrolled redisplay — overlays are correct when the
+user sees them, preventing label shift flicker."
+  (with-current-buffer (window-buffer window)
+    (when sc-mode
+      (sc--init))))
+
+;; ═════════════════════════════════════════════════════════════════════════════
 ;;  Post-command — full sc--init on every command
 ;; ═════════════════════════════════════════════════════════════════════════════
 
@@ -502,10 +514,12 @@ Saves current position to the Evil jumplist before jumping."
         (global-sc-mode--enable-all)
         (add-hook 'after-change-major-mode-hook #'global-sc-mode--enable-buffer)
         (add-hook 'window-size-change-functions #'sc--on-window-size-change)
+        (add-hook 'window-scroll-functions #'sc--on-window-scroll)
         (add-hook 'pre-redisplay-functions #'sc--on-pre-redisplay))
     (global-sc-mode--disable-all)
     (remove-hook 'after-change-major-mode-hook #'global-sc-mode--enable-buffer)
     (remove-hook 'window-size-change-functions #'sc--on-window-size-change)
+    (remove-hook 'window-scroll-functions #'sc--on-window-scroll)
     (remove-hook 'pre-redisplay-functions #'sc--on-pre-redisplay)))
 
 (defun global-sc-mode--enable-buffer ()
