@@ -11,8 +11,8 @@
 ;; C-h / C-l to switch tabs via MRU-tabs.
 ;; Window navigation uses Evil's built-in C-w h/j/k/l.
 (general-def '(normal insert visual)
-  "C-h"  'my/MRU-tabs-backward
-  "C-l"  'my/MRU-tabs-forward
+  "M-h"  'my/MRU-tabs-backward
+  "M-l"  'my/MRU-tabs-forward
   "C-u"  'evil-scroll-up)
 
 ;; ── Dired from anywhere (all modes) ───────────────────────
@@ -221,6 +221,32 @@ n/N works with the same search pattern."
     (setq header-line-format
           " Compose text — C-c C-c to send, C-c C-k to cancel")))
 
+(defun my/eat-buffer-list ()
+  "Return all eat-mode buffers."
+  (seq-filter (lambda (b)
+                (with-current-buffer b (derived-mode-p 'eat-mode)))
+              (buffer-list)))
+
+(defun my/eat-spawn-at-index (index)
+  "Create a new eat buffer with the given INDEX and return it."
+  (let ((buf-name (format "%d  waiting" index))
+        (shell (or explicit-shell-file-name
+                   (getenv "ESHELL")
+                   shell-file-name))
+        (cwd default-directory))
+    (with-current-buffer (get-buffer-create buf-name)
+      (setq default-directory cwd)
+      (eat-mode)
+      (unless (and eat-terminal
+                   (eat-term-parameter eat-terminal 'eat--process))
+        (eat-exec (current-buffer) (buffer-name)
+                  "/usr/bin/env" nil
+                  (list "sh" "-c" shell)))
+      (when-let* ((proc (eat-term-parameter eat-terminal 'eat--process))
+                  ((process-live-p proc)))
+        (rename-buffer (format "%d  %d" index (process-id proc))))
+      (current-buffer))))
+
 (defun my/eat-compose ()
   "Open a compose buffer to write text for the current eat terminal.
 If called from a visual selection, captures the selected text into
@@ -319,75 +345,6 @@ the compose buffer.  Otherwise starts empty.
             (my/filtered-buffer-list))))
 
 ;; ═════════════════════════════════════════════════════════════════
-;;  SPC e 0-9 — Jump to / spawn eat terminal by index
-;; ═════════════════════════════════════════════════════════════════
-
-(defun my/eat-buffer-list ()
-  "Return all eat-mode buffers."
-  (seq-filter (lambda (b)
-                (with-current-buffer b (derived-mode-p 'eat-mode)))
-              (buffer-list)))
-
-(defun my/eat-index-strings ()
-  "Return index strings like \"7\" for all existing eat buffers.
-Sorted numerically."
-  (let ((indices (delq nil
-                       (mapcar (lambda (b)
-                                 (when (string-match
-                                        "\\`\\([0-9]+\\) "
-                                        (buffer-name b))
-                                   (match-string 1 (buffer-name b))))
-                               (my/eat-buffer-list)))))
-    (mapcar #'number-to-string
-            (sort (mapcar #'string-to-number indices) #'<))))
-
-(defun my/eat-spawn-at-index (index)
-  "Create a new eat buffer with the given INDEX and return it."
-  (let ((buf-name (format "%d  waiting" index))
-        (shell (or explicit-shell-file-name
-                   (getenv "ESHELL")
-                   shell-file-name)))
-    (with-current-buffer (get-buffer-create buf-name)
-      (eat-mode)
-      (unless (and eat-terminal
-                   (eat-term-parameter eat-terminal 'eat--process))
-        (eat-exec (current-buffer) (buffer-name)
-                  "/usr/bin/env" nil
-                  (list "sh" "-c" shell)))
-      (when-let* ((proc (eat-term-parameter eat-terminal 'eat--process))
-                  ((process-live-p proc)))
-        (rename-buffer (format "%d  %d" index (process-id proc))))
-      (current-buffer))))
-
-;; ═════════════════════════════════════════════════════════════════
-;;  Goto functions — called by digit keybindings below
-;; ═════════════════════════════════════════════════════════════════
-
-(defun my/eat-goto ()
-  "Jump to or spawn an eat terminal by index.  Digit seeds the search."
-  (interactive)
-  (let* ((keys (this-single-command-keys))
-         (key (aref keys (1- (length keys))))
-         (initial (char-to-string key))
-         (candidates (my/eat-index-strings))
-         (input (completing-read "eat: " candidates nil nil initial)))
-    (if (string= input "")
-        (message "Cancelled")
-      (let ((index (string-to-number input)))
-        (if (member input candidates)
-            (let ((buf (my/eat-buffer-by-index index)))
-              (if buf (switch-to-buffer buf)
-                (my/eat-spawn-at-index index)))
-          (my/eat-spawn-at-index index)
-          (message "Spawned eat %d" index))))))
-
-(defun my/eat-buffer-by-index (index)
-  "Return the eat buffer with the given INDEX, or nil."
-  (car (seq-filter
-        (lambda (b)
-          (string-match-p (format "\\`%d " index) (buffer-name b)))
-        (my/eat-buffer-list))))
-
 (defun my/buffer-goto ()
   "Jump to a non-excluded buffer by index.  Pressed digit seeds the search."
   (interactive)
@@ -584,7 +541,10 @@ When called from inside dired:
                  ("M-i" . [?\e ?i])
                  ("M-z" . [?\e ?z])
                  ("M-w" . [?\e ?w])
-                 ("M-W" . [?\e ?W])))
+                 ("M-W" . [?\e ?W])
+                 ("M-e" . [?\e ?e])
+                 ("M-h" . [?\e ?h])
+                 ("M-l" . [?\e ?l])))
     (add-to-list 'eat-semi-char-non-bound-keys (cdr key))
     (define-key eat-semi-char-mode-map (kbd (car key)) nil)
     (when (and (boundp 'eat--semi-char-mode-map)

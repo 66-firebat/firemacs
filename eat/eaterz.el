@@ -169,7 +169,8 @@ calls the associated handler.  Otherwise falls through to `my/eat-new'
 with no argument (uses `default-directory')."
   (interactive)
   (if-let ((handler (cdr (cl-assoc major-mode my/eat-new-dispatch-alist
-                                   :test #'derived-mode-p))))
+                                   :test (lambda (_mode key)
+                                           (derived-mode-p key))))))
       (funcall handler)
     (my/eat-new)))
 
