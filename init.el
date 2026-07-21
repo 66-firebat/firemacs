@@ -429,7 +429,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 (my/load-module "jumpring.el")       ;; Global C-o/C-i jump ring
 
 ;; ── Terminal ────────────────────────────────────────────────────────────────
-(my/load-module "eat-firemacs.el")   ;; Terminal emulator inside Emacs
+(my/load-module "eat/eaterz.el")   ;; Terminal emulator inside Emacs
 
 ;; ── Editing ─────────────────────────────────────────────────────────────────
 (my/load-module "embark.el")         ;; Context-aware actions
