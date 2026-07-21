@@ -452,7 +452,6 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 (my/load-module "pi.el")             ;; AI coding agent frontend
 (my/load-module "wl-clipboard.el")   ;; Wayland clipboard integration
 (my/load-module "theme.el")          ;; Firebat theme
-;; (my/load-module "emacs-zoxide/zoxide.el")  ;; Zoxide directory jumper (eat still depends on this for spawning the eat-dispatch command from an eat buffer"
 (enable-theme 'firebat)
 
 ;; ── Options ─────────────────────────────────────────────────────────────────

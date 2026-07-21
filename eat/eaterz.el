@@ -302,10 +302,11 @@ text properties, or nil if LINE can't be parsed."
 
 (defun eaterz-consult-builder (input)
   "Build command line for `zoxide query -ls' from INPUT.
-Returns a command list or nil."
+Returns a command list or nil.
+Splits INPUT on whitespace for multi-keyword matching."
   (if (or (not input) (string-empty-p input))
       (list eaterz--executable "query" "-ls")
-    (list eaterz--executable "query" "-ls" input)))
+    (apply #'list eaterz--executable "query" "-ls" (split-string input))))
 
 ;; ════════════════════════════════════════════════════════════════════════════
 ;; ── Consult async pipeline ─────────────────────────────────────────────────
