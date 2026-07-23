@@ -45,9 +45,9 @@
 
 (defun my/ghostel-next-available ()
   "Return the lowest unused ghostel index (1, 2, 3, ...).
-Scans all buffer names for \"<N> \" prefixes."
+Scans all buffer names for \"<N>-\" prefixes."
   (let ((i 1))
-    (while (let ((target (format "%d " i)))
+    (while (let ((target (format "%d-" i)))
              (catch 'exists
                (dolist (b (buffer-list) nil)
                  (when (string-prefix-p target (buffer-name b))
@@ -56,36 +56,18 @@ Scans all buffer names for \"<N> \" prefixes."
     i))
 
 (defun my/ghostel-new (&optional dir)
-  "Spawn a new ghostel terminal at the lowest available index.
-Buffer is named like \"1  19950\" (index +  + PID).
-
-The shell starts in `default-directory', or in DIR when DIR names an
-existing directory.  If DIR is a file, its parent directory is used.
-If DIR is nil or does not exist, `default-directory' is used silently."
+  "Spawn a new ghostel terminal."
   (interactive)
-  (let* ((index (my/ghostel-next-available))
-         (cwd (cond
-               ((and dir
-                     (let ((expanded (expand-file-name dir)))
-                       (cond
-                        ((file-directory-p expanded)
-                         (file-name-as-directory expanded))
-                        ((file-exists-p expanded)
-                         (file-name-directory expanded))
-                        (t nil)))))
-               (t default-directory))))
-    ;; Bind default-directory (CWD) and ghostel-buffer-name (base name).
-    ;; (ghostel t) = always fresh buffer (skips existence check).
-    ;; Verified from source: ghostel.el L5293.
-    (let ((default-directory cwd)
-          (ghostel-buffer-name (format "%d " index)))
-      (ghostel t))
-    ;; Now we are in the ghostel buffer — rename to include our index + PID.
-    (when-let* ((proc (and (boundp 'ghostel--process)
-                           ghostel--process))
-                ((process-live-p proc)))
-      (rename-buffer (format "%d  %d" index (process-id proc))))
-    (current-buffer)))
+  (let ((default-directory (or (and dir
+                                    (let ((expanded (expand-file-name dir)))
+                                      (cond ((file-directory-p expanded)
+                                             (file-name-as-directory expanded))
+                                            ((file-exists-p expanded)
+                                             (file-name-directory expanded))
+                                            (t nil))))
+                               default-directory)))
+    (ghostel t))
+  (current-buffer))
 
 ;; ════════════════════════════════════════════════════════════════════════════
 ;; ── Dispatch — Mode-aware terminal spawning ─────────────────────────────────
@@ -157,17 +139,9 @@ with no argument (uses `default-directory')."
               (buffer-list)))
 
 (defun my/ghostel-spawn-at-index (index)
-  "Create a new ghostel buffer with the given INDEX and return it.
-Used by consult-buffer.el to spawn terminals from numeric input."
-  (let* ((cwd default-directory)
-         (ghostel-buffer-name (format "%d " index)))
-    (let ((default-directory cwd))
-      (ghostel t))  ;; t = always fresh buffer
-    (when-let* ((proc (and (boundp 'ghostel--process)
-                           ghostel--process))
-                ((process-live-p proc)))
-      (rename-buffer (format "%d  %d" index (process-id proc))))
-    (current-buffer)))
+  "Create a new ghostel buffer and return it."
+  (ghostel t)
+  (current-buffer))
 
 ;; ════════════════════════════════════════════════════════════════════════════
 ;; ── Ghostfire — Zoxide travel for ghostel terminals ─────────────────────────
