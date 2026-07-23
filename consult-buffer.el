@@ -8,9 +8,6 @@
 ;; =============================================================================
 
 ;; ── Previous buffer source ─────────────────────────────────────
-;; Shows the most recently selected buffer (the one you'd get by
-;; calling `mode-line-other-buffer') as a single candidate at the
-;; very top of consult-buffer.  Makes it easy to quickly jump back.
 
 (defvar my/consult-source-previous
   `(:name     "Previous"
@@ -23,56 +20,40 @@
   "Consult source showing the most recently selected buffer.
 Appears as a single-candidate \"Previous\" section at the top.")
 
-;; ── Eat source ────────────────────────────────────────────────
-;; Allows typing a number in SPC b b (consult-buffer) to spawn an
-;; eat terminal at that index.  Existing eat buffers appear as candidates.
+;; ── Ghostel source ────────────────────────────────────────────
+;; Allows typing a number in consult-buffer to spawn a ghostel
+;; terminal at that index.  Existing ghostel buffers appear as candidates.
 ;;
-;; IMPORTANT — :default t + prepend
-;; ---------------------------------
-;; When a user types text that doesn't match any candidate,
-;; `consult--multi-lookup' picks the FIRST source with :default t and
-;; calls its :new function.  If we're not the default, consult falls
-;; through to `consult-source-buffer' (which has no :new) and creates
-;; a plain Fundamental buffer.  We MUST be the default source so our
-;; :new is called.
+;; :default t ensures our :new is picked first by consult--multi-lookup.
 ;;
 ;; Our :new handles both cases:
-;;   "90"         → spawn eat terminal at index 90
-;;   "README.md"  → create a regular buffer (via consult--buffer-action)
+;;   "90"         -> spawn ghostel terminal at index 90
+;;   "README.md"  -> create a regular buffer (via consult--buffer-action)
 
-(defvar my/consult-eat-source
-  `(:name     "Eat"
+(defvar my/consult-ghostel-source
+  `(:name     "Ghostel"
     :category buffer
-    :default  t                    ;; <-- consult-multi-lookup picks us first
+    :default  t
     :face     consult-buffer
     :history  buffer-name-history
     :state    ,#'consult--buffer-state
     :new      ,(lambda (name)
                  (if (string-match-p "\\`[0-9]+\\'" name)
-                     ;; Numeric → spawn eat at that index
-                     (let ((buf (my/eat-spawn-at-index (string-to-number name))))
+                     (let ((buf (my/ghostel-spawn-at-index (string-to-number name))))
                        (when buf
                          (consult--buffer-action buf)))
-                   ;; Non-numeric → create a regular buffer (same fallback
-                   ;; consult-buffer would normally do)
                    (consult--buffer-action name)))
     :items    ,(lambda ()
-                 (mapcar #'buffer-name (my/eat-buffer-list))))
-  "Custom consult-buffer source for eat terminals.
-Allows spawning a new eat by entering its index.
-Uses `my/eat-spawn-at-index' and `my/eat-buffer-list' from keybinds.el.")
+                 (mapcar #'buffer-name (my/ghostel-buffer-list))))
+  "Custom consult-buffer source for ghostel terminals.
+Allows spawning a new ghostel by entering its index.
+Uses `my/ghostel-spawn-at-index' and `my/ghostel-buffer-list' from ghostfire.el.")
 
-;; Prepend so our source is found FIRST by `consult--multi-lookup'
-;; (since both we and consult-source-buffer have :default t).
-(add-to-list 'consult-buffer-sources 'my/consult-eat-source)
+(add-to-list 'consult-buffer-sources 'my/consult-ghostel-source)
 
-;; ── Filter eat buffers from the default "Buffer" section ──────
-;; Without this, eat buffers ("0  8660", etc.) appear in BOTH the
-;; "Eat" section (from my/consult-eat-source) AND the default "Buffer"
-;; section (from consult-source-buffer).  We replace consult-source-buffer
-;; with a copy that adds a :predicate to exclude eat-mode buffers.
+;; ── Filter ghostel buffers from the default "Buffer" section ──
 
-(defvar my/consult-source-buffer-no-eat
+(defvar my/consult-source-buffer-no-ghostel
   `( :name     "Buffer"
      :narrow   ?b
      :category buffer
@@ -86,22 +67,20 @@ Uses `my/eat-spawn-at-index' and `my/eat-buffer-list' from keybinds.el.")
                                :as #'consult--buffer-pair
                                :predicate (lambda (b)
                                             (not (with-current-buffer b
-                                                   (derived-mode-p 'eat-mode)))))))
-  "Like `consult-source-buffer' but excludes eat-mode buffers.
+                                                   (derived-mode-p 'ghostel-mode)))))))
+  "Like `consult-source-buffer' but excludes ghostel-mode buffers.
 
-These are shown separately in the \"Eat\" section from
-`my/consult-eat-source'.")
+These are shown separately in the \"Ghostel\" section from
+`my/consult-ghostel-source'.")
 
-;; Swap it into the sources list in place of the original.
 (setq consult-buffer-sources
       (mapcar (lambda (s)
                 (if (eq s 'consult-source-buffer)
-                    'my/consult-source-buffer-no-eat
+                    'my/consult-source-buffer-no-ghostel
                   s))
               consult-buffer-sources))
 
 ;; Prepend Previous so it appears at the VERY top
-;; (must be after the other add-to-list calls since add-to-list prepends)
 (add-to-list 'consult-buffer-sources 'my/consult-source-previous)
 
 

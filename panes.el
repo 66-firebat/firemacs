@@ -91,7 +91,7 @@
 
 ;; Buffer-local display tables in terminal emulators that
 ;; shadow the standard display table.
-(dolist (hook '(eat-mode-hook vterm-mode-hook))
+(dolist (hook '(ghostel-mode-hook vterm-mode-hook))
   (add-hook hook
             (lambda ()
               (when-let ((table (or buffer-display-table

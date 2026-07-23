@@ -104,7 +104,7 @@ tab bar with icons.  All rendering is self-built in raw Emacs Lisp."
     ("Docs"    ""   org-mode markdown-mode text-mode)
     ("Config"  ""   conf-mode)
     ("Dired"   "󰙅"   dired-mode)
-    ("Eat"     ""   eat-mode)
+    ("Ghostel" ""   ghostel-mode)
     ("Tools"   ""   magit-mode vterm-mode
                help-mode apropos-mode Info-mode)
     ("Buffers" ""))

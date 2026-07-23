@@ -510,34 +510,16 @@ Type your text with full Emacs editing, then:
 ;; ════════════════════════════════════════════════════════════════════════════
 ;; ── Semi-char non-bound keys ────────────────────────────────────────────────
 ;; ════════════════════════════════════════════════════════════════════════════
-;; Tell ghostel to ignore these Alt- chords in semi-char mode so Emacs can
-;; handle them.  Same set as the old eat configuration.
-;;
-;; NOTE: ghostel-semi-char-non-bound-keys uses the same vector format as
-;; eat-semi-char-non-bound-keys: [?\e ?<char>] for Alt + char, and ghostel's
-;; semi-char mode is modelled on eat's.
+;; Tell ghostel to let these Alt- chords pass through to Emacs in semi-char
+;; mode.  Ghostel uses `ghostel-keymap-exceptions' (a list of key strings)
+;; and `ghostel--rebuild-semi-char-keymap' to regenerate the keymap — unlike
+;; eat which used vectors and direct keymap manipulation.
 
 (with-eval-after-load 'ghostel
-  (when (boundp 'ghostel-semi-char-non-bound-keys)
-    (dolist (key '(("M-t" . [?\e ?t])
-                   ("M-r" . [?\e ?r])
-                   ("M-k" . [?\e ?k])
-                   ("M-g" . [?\e ?g])
-                   ("M-i" . [?\e ?i])
-                   ("M-z" . [?\e ?z])
-                   ("M-w" . [?\e ?w])
-                   ("M-W" . [?\e ?W])
-                   ("M-e" . [?\e ?e])
-                   ("M-h" . [?\e ?h])
-                   ("M-l" . [?\e ?l])))
-      (add-to-list 'ghostel-semi-char-non-bound-keys (cdr key))
-      (when (boundp 'ghostel-semi-char-mode-map)
-        (define-key ghostel-semi-char-mode-map (kbd (car key)) nil))
-      (when (and (boundp 'ghostel--semi-char-mode-map)
-                 (not (eq ghostel--semi-char-mode-map
-                          (and (boundp 'ghostel-semi-char-mode-map)
-                               ghostel-semi-char-mode-map))))
-        (define-key ghostel--semi-char-mode-map (kbd (car key)) nil)))))
-
+  (dolist (key '("M-t" "M-r" "M-k" "M-g" "M-i"
+                 "M-z" "M-w" "M-W" "M-e" "M-h" "M-l"))
+    (add-to-list 'ghostel-keymap-exceptions key))
+  (when (fboundp 'ghostel--rebuild-semi-char-keymap)
+    (ghostel--rebuild-semi-char-keymap)))
 (provide 'ghostfire)
 ;; ghostfire.el ends here

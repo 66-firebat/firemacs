@@ -16,14 +16,14 @@
   "C-u"  'evil-scroll-up)
 
 ;; ── Dired from anywhere (all modes) ───────────────────────
-;; C-e opens dired in the eat terminal's current working directory.
+;; C-e opens dired in the ghostel terminal's current working directory.
 ;; Overrides evil-scroll-line-down in normal mode and move-end-of-line
 ;; in insert mode.
 (general-def '(normal insert visual motion emacs)
-  "C-e" 'my/dired-from-eat)
+  "C-e" 'my/dired-from-terminal)
 
 ;; ── Quick buffer switch ──────────────────────────────────
-;; Opens consult-buffer (includes vterm source).
+;; Opens consult-buffer (includes ghostel source).
 ;; Replaces evil-scroll-page-up in normal state.
 (general-def '(normal insert visual)
   "M-i" 'consult-buffer)
@@ -49,18 +49,6 @@ line mode, go to last line)."
   "C-a" 'my/select-whole-buffer)
 
 ;; ── Avy — jump to any visible character ────────────────────────
-;; f + two chars → jump to that exact character pair
-;; S + two chars → jump to that exact character pair (overridden below)
-;; g s           → jump to a visible line number
-;;
-;; sc-avy-goto-char-2 is NOT an evil motion, so using it in operator-pending
-;; mode (e.g., `d f`) would error.  my/avy-goto-char-2-motion wraps it as
-;; a proper `evil-define-motion' with :type inclusive, so operators can
-;; consume the range it produces.
-
-;; Shows the bolt icon (󰠠) in the statuscolumn during f/F/;/gs jumps
-;; by setting `sc--jump-active' so `sc--current-str' renders the bolt
-;; instead of the slice icon.
 
 (defun my/avy-goto-char-with-icon ()
   "Like `avy-goto-char' but shows bolt icon in statuscolumn."
@@ -118,16 +106,7 @@ Works in operator-pending mode (dF, yF, cF, etc.)."
   "F" 'my/avy-goto-char-timer-motion)
 
 ;; ── s / S — consult search ──────────────────────────────────────
-;; s   → consult-line   (search current buffer)
-;; S   → consult-ripgrep (search project with ripgrep)
-;;
-;; Overrides: s = evil-substitute, S = avy-goto-char-2.
-;; Use x then i to substitute a char, or f for two-char Avy jumps.
-;;
-;; Both push the current cursor position into the Evil jump ring
-;; before opening the consult UI, so C-o returns to where you were.
-;; After selection, the search text is pushed into Emacs' search ring
-;; so n/N (evil-search-next/previous) re-searches with that text.
+
 (defun my/consult-line-with-jump ()
   "Push current position to jump ring, then call `consult-line'.
 After selection, push the user's typed input into the search ring so
@@ -171,12 +150,7 @@ n/N works with the same search pattern."
   "S" 'my/consult-ripgrep-with-jump)
 
 ;; ── n / N — search next/previous with auto-recenter ───────────
-;; Wraps evil-search-next/previous and then calls
-;; evil-scroll-line-to-center (zz) to keep the match centered.
-;;
-;; Overrides: n = evil-search-next, N = evil-search-previous.
-;; Bound only in motion-state-map; visual and operator states
-;; inherit via Evil's fallthrough mechanism.
+
 (defun my/evil-search-next-and-center (&optional count)
   "Search forward for next match, then recenter the window."
   (interactive "P")
@@ -193,115 +167,8 @@ n/N works with the same search pattern."
 (define-key evil-motion-state-map "N" 'my/evil-search-previous-and-center)
 
 ;; ── C-i / TAB jump forward ─────────────────────────────────────
-;; evil-want-C-i-jump t (init.el) handles TAB via evil-motion-state-map.
-;; The kkp package (init.el) decodes C-i as [C-i] terminal-side; we
-;; bind it here explicitly for normal and visual states.
 (define-key evil-normal-state-map [C-i] 'evil-jump-forward)
 (define-key evil-visual-state-map [C-i] 'evil-jump-forward)
-
-
-;; ═════════════════════════════════════════════════════════════════
-;;  Eat Compose — Full Emacs buffer for typing into eat
-;; ═════════════════════════════════════════════════════════════════
-;; Opens a temporary buffer where you can write with full Emacs
-;; editing, then sends the text to the eat terminal on C-c C-c.
-
-(defvar-local my/eat-compose-source nil
-  "Buffer of the eat terminal this compose buffer belongs to.")
-
-(define-minor-mode my/eat-compose-mode
-  "Minor mode for composing text to send to an eat terminal.
-\nKeybindings:\n  C-c C-c  — Send text to eat and close\n  C-c C-k  — Cancel and close"
-  :lighter " ✎"
-  :keymap (let ((map (make-sparse-keymap)))
-            (define-key map (kbd "C-c C-c") 'my/eat-compose-send)
-            (define-key map (kbd "C-c C-k") 'my/eat-compose-cancel)
-            map)
-  (when my/eat-compose-mode
-    (setq header-line-format
-          " Compose text — C-c C-c to send, C-c C-k to cancel")))
-
-(defun my/eat-buffer-list ()
-  "Return all eat-mode buffers."
-  (seq-filter (lambda (b)
-                (with-current-buffer b (derived-mode-p 'eat-mode)))
-              (buffer-list)))
-
-(defun my/eat-spawn-at-index (index)
-  "Create a new eat buffer with the given INDEX and return it."
-  (let ((buf-name (format "%d  waiting" index))
-        (shell (or explicit-shell-file-name
-                   (getenv "ESHELL")
-                   shell-file-name))
-        (cwd default-directory))
-    (with-current-buffer (get-buffer-create buf-name)
-      (setq default-directory cwd)
-      (eat-mode)
-      (unless (and eat-terminal
-                   (eat-term-parameter eat-terminal 'eat--process))
-        (eat-exec (current-buffer) (buffer-name)
-                  "/usr/bin/env" nil
-                  (list "sh" "-c" shell)))
-      (when-let* ((proc (eat-term-parameter eat-terminal 'eat--process))
-                  ((process-live-p proc)))
-        (rename-buffer (format "%d  %d" index (process-id proc))))
-      (current-buffer))))
-
-(defun my/eat-compose ()
-  "Open a compose buffer to write text for the current eat terminal.
-If called from a visual selection, captures the selected text into
-the compose buffer.  Otherwise starts empty.
-\nType your text with full Emacs editing, then:\n  C-c C-c  — Send to eat and close\n  C-c C-k  — Cancel and close"
-  (interactive)
-  (unless (derived-mode-p 'eat-mode)
-    (user-error "Not in an eat terminal buffer"))
-  (let* ((source-buf (current-buffer))
-         (selected (when (evil-visual-state-p)
-                     (buffer-substring-no-properties
-                      (region-beginning) (region-end)))))
-    (switch-to-buffer (get-buffer-create "*eat-compose*"))
-    (unless (zerop (buffer-size))
-      (erase-buffer))
-    (when selected
-      (insert selected))
-    (text-mode)
-    (setq my/eat-compose-source source-buf)
-    (my/eat-compose-mode 1)
-    ;; Start in insert state: type immediately, ESC to use evil nav
-    (evil-insert-state)))
-
-(defun my/eat-compose-send ()
-  "Send the compose buffer text to the eat terminal and close."
-  (interactive)
-  (let* ((new-text (buffer-string))
-         ;; Clear existing shell input (C-u in readline) then insert new text
-         (text (concat "\C-u" new-text "\n"))
-         (source my/eat-compose-source)
-         (compose-buf (current-buffer)))
-    ;; Switch to eat buffer and send through its terminal input
-    (when (buffer-live-p source)
-      (switch-to-buffer source)
-      (when (and (derived-mode-p 'eat-mode)
-                 eat-terminal
-                 (fboundp 'eat-term-send-string))
-        (eat-term-send-string eat-terminal text))
-      (when (fboundp 'evil-normal-state)
-        (evil-normal-state)))
-    ;; Clean up compose buffer
-    (when (buffer-live-p compose-buf)
-      (kill-buffer compose-buf))))
-
-(defun my/eat-compose-cancel ()
-  "Cancel composing and close the buffer."
-  (interactive)
-  (let ((source my/eat-compose-source))
-    (if (and source (buffer-live-p source))
-        (switch-to-buffer source)
-      (switch-to-buffer (other-buffer)))
-    (when (buffer-live-p (get-buffer "*eat-compose*"))
-      (kill-buffer (get-buffer "*eat-compose*")))
-    (when (fboundp 'evil-normal-state)
-      (evil-normal-state))))
 
 ;; ═════════════════════════════════════════════════════════════════
 ;;  SPC b r — Previous Buffer
@@ -345,6 +212,7 @@ the compose buffer.  Otherwise starts empty.
             (my/filtered-buffer-list))))
 
 ;; ═════════════════════════════════════════════════════════════════
+
 (defun my/buffer-goto ()
   "Jump to a non-excluded buffer by index.  Pressed digit seeds the search."
   (interactive)
@@ -364,20 +232,20 @@ the compose buffer.  Otherwise starts empty.
           (message "No buffer at index %d" index))))))
 
 ;; ═════════════════════════════════════════════════════════════════
-;;  Dired — open from eat terminal's working directory
+;;  Dired — open from terminal's working directory
 ;; ═════════════════════════════════════════════════════════════════
 
 (defvar my/dired-previous-buffer nil
-  "Buffer that was current before `my/dired-from-eat' opened dired.
+  "Buffer that was current before `my/dired-from-terminal' opened dired.
 Used to return to the exact buffer when toggling dired closed.")
 
-(defun my/dired-from-eat ()
+(defun my/dired-from-terminal ()
   "Toggle a dired buffer open/closed.
 
 When called from outside dired:
-  (1) Visiting a file        → `dired-jump' (opens file's parent dir, point on file)
-  (2) In an eat terminal     → opens dired at eat's `default-directory'
-  (3) Any other buffer        → opens dired at the first eat buffer's
+  (1) Visiting a file        -> `dired-jump' (opens file's parent dir, point on file)
+  (2) In a ghostel terminal  -> opens dired at ghostel's `default-directory'
+  (3) Any other buffer       -> opens dired at the first ghostel buffer's
                                 `default-directory', or falls back to the
                                 current buffer's `default-directory'
 
@@ -385,30 +253,30 @@ When called from inside dired:
   Kills the dired buffer and returns to the previous buffer."
   (interactive)
   (if (derived-mode-p 'dired-mode)
-      ;; ── In dired: kill it and go back to previous buffer ──
+      ;; In dired: kill it and go back to previous buffer
       (let ((prev my/dired-previous-buffer))
         (kill-buffer (current-buffer))
         (if (and prev (buffer-live-p prev))
             (switch-to-buffer prev)
           (message "No previous buffer to return to")))
-    ;; ── Not in dired: record current buffer and open dired ──
+    ;; Not in dired: record current buffer and open dired
     (setq my/dired-previous-buffer (current-buffer))
     (cond
      ;; (1) Visiting a file — dired-jump to its parent directory
      ((buffer-file-name)
       (dired-jump))
-     ;; (2) In an eat terminal — use its default-directory (cwd)
-     ((derived-mode-p 'eat-mode)
+     ;; (2) In a ghostel terminal — use its default-directory (cwd)
+     ((derived-mode-p 'ghostel-mode)
       (dired default-directory))
-     ;; (3) Otherwise — try to find an eat buffer, else use current dir
+     ;; (3) Otherwise — try to find a ghostel buffer, else use current dir
      (t
-      (let ((eat-buf (car (seq-filter
-                           (lambda (b)
-                             (with-current-buffer b
-                               (derived-mode-p 'eat-mode)))
-                           (buffer-list)))))
-        (if eat-buf
-            (dired (with-current-buffer eat-buf default-directory))
+      (let ((term-buf (car (seq-filter
+                            (lambda (b)
+                              (with-current-buffer b
+                                (derived-mode-p 'ghostel-mode)))
+                            (buffer-list)))))
+        (if term-buf
+            (dired (with-current-buffer term-buf default-directory))
           (dired default-directory)))))))
 
 ;; ═════════════════════════════════════════════════════════════════
@@ -426,7 +294,7 @@ When called from inside dired:
   "b n" '(next-buffer :which-key "next buffer")
   "b p" '(previous-buffer :which-key "previous buffer")
 
-  ;; Tabs — after switching, enter insert if landing on vterm
+  ;; Tabs
   "h" '(centaur-tabs-backward :which-key "prev tab")
   "l" '(centaur-tabs-forward :which-key "next tab")
 
@@ -446,7 +314,7 @@ When called from inside dired:
   "p g" '(consult-grep :which-key "grep project")
   "p b" '(project-switch-to-buffer :which-key "project buffer")
 
-  ;; Pi — AI coding agent (prefix group: SPC p i)
+  ;; Pi — AI coding agent
   "p i" '(nil :which-key "pi")
   "p i i" '(pi-coding-agent :which-key "start/focus pi")
   "p i f" '(my/pi-frame :which-key "pi in new frame")
@@ -475,11 +343,8 @@ When called from inside dired:
   "t w" '(whitespace-mode :which-key "toggle whitespace")
   "t p" '(pi-coding-agent-toggle :which-key "toggle pi")
 
-  ;; Eat compose
-  "t e" '(my/eat-compose :which-key "eat compose")
-
-  ;; Dired
-  ;; (removed SPC d d — C-e now handles dired toggling globally)
+  ;; Ghostel compose
+  "t e" '(my/ghostel-compose :which-key "ghostel compose")
 
   ;; Docs
   "d f" '(describe-function :which-key "describe function")
@@ -495,8 +360,6 @@ When called from inside dired:
   ;; Org / Notes
   "n c" '(org-capture :which-key "capture")
   "n a" '(org-agenda :which-key "agenda")
-
-  ;; Buffer / Vterm digits (hidden from which-key)
   )
 
 ;; ── Pi input buffer mode-map customizations ──────────────────────────────
@@ -518,55 +381,32 @@ When called from inside dired:
     "q" 'pi-coding-agent-quit))
 
 ;; ── Global Master Keybinds ────────────────────────────────────────
-;; Bound in the override keymap so it takes precedence over ALL
-;; mode-specific bindings (sh-mode's sh-tmp-file, etc.). Ensure that your window manager (hyprland, for example) does not override these binds because they WILL be intercepted by your window manager first.
 (general-def :keymaps 'override
-  "M-t" 'my/eat-new-dispatch
+  "M-t" 'my/ghostel-new-dispatch
   "M-r" 'consult-recent-file
   "M-k" 'kill-current-buffer
   "M-z" 'my/zoxide-travel-dispatch
   "M-w" 'my/smart-other-window
   "M-W" 'my/smart-close-window)
 
-;; Tell Eat to ignore Alt+t, Alt+r, and Alt+k in semi-char mode so Emacs
-;; can handle them.  define-key modifies the keymap in place, which is
-;; essential because define-minor-mode captures it by value — if we only
-;; called eat-update-semi-char-mode-map, the minor mode would still
-;; reference the old keymap object.
-(with-eval-after-load 'eat
-  (dolist (key '(("M-t" . [?\e ?t])
-                 ("M-r" . [?\e ?r])
-                 ("M-k" . [?\e ?k])
-                 ("M-g" . [?\e ?g])
-                 ("M-i" . [?\e ?i])
-                 ("M-z" . [?\e ?z])
-                 ("M-w" . [?\e ?w])
-                 ("M-W" . [?\e ?W])
-                 ("M-e" . [?\e ?e])
-                 ("M-h" . [?\e ?h])
-                 ("M-l" . [?\e ?l])))
-    (add-to-list 'eat-semi-char-non-bound-keys (cdr key))
-    (define-key eat-semi-char-mode-map (kbd (car key)) nil)
-    (when (and (boundp 'eat--semi-char-mode-map)
-               (not (eq eat--semi-char-mode-map eat-semi-char-mode-map)))
-      (define-key eat--semi-char-mode-map (kbd (car key)) nil))))
+;; Non-bound keys for ghostel semi-char mode are configured in
+;; ghostel/ghostfire.el (with-eval-after-load 'ghostel).
+;; The old eat-semi-char-non-bound-keys block has been removed.
 
 ;; ── Find file ────────────────────────────────────────────────────────────
 (global-set-key (kbd "C-c C-p") 'find-file)
 
-;; ── Eat compose (from inside eat buffer) ─────────────────────
-;; Note: C-c C-e is taken by eat's own `eat-emacs-mode' (makes buffer
-;; read-only).  Use C-c C-m (m=compose/message) instead.
-(define-key global-map (kbd "C-c C-m") 'my/eat-compose)
+;; ── Ghostel compose (from inside ghostel buffer) ───────────────
+(define-key global-map (kbd "C-c C-m") 'my/ghostel-compose)
 
 ;; ── Zoxide travel dispatch ────────────────────────────────────
 (defun my/zoxide-travel-dispatch ()
-  "Dispatch to `eaterz-travel' or `greaszy-travel' based on context.
-In an eat terminal buffer, cd into the selected directory.
+  "Dispatch to `ghostfire-travel' or `greaszy-travel' based on context.
+In a ghostel terminal buffer, cd into the selected directory.
 Otherwise, open the directory in Grease."
   (interactive)
-  (if (derived-mode-p 'eat-mode)
-      (call-interactively #'eaterz-travel)
+  (if (derived-mode-p 'ghostel-mode)
+      (call-interactively #'ghostfire-travel)
     (call-interactively #'greaszy-travel)))
 
 ;; ── Smart window navigation ────────────────────────────────────
@@ -595,10 +435,9 @@ Otherwise, open the directory in Grease."
 ;; ═════════════════════════════════════════════════════════════════
 ;;  C-a Diagnostic Command
 ;; ═════════════════════════════════════════════════════════════════
-;; Run M-x my/diagnose-c-a after C-a y to see what's on the clipboard.
 
 (defun my/diagnose-c-a ()
-  "Diagnose what\='s on the clipboard after C-a y.
+  "Diagnose what's on the clipboard after C-a y.
 Shows the clipboard content, KKP status, and key binding info."
   (interactive)
   (let* ((kr-len (length kill-ring))
@@ -608,7 +447,6 @@ Shows the clipboard content, KKP status, and key binding info."
          (kr-top-full (car kill-ring))
          (wl-copy-alive (and (boundp 'wl-copy-process)
                              (process-live-p wl-copy-process)))
-         ;; Actually read the system clipboard by shelling out directly
          (sys-clip (condition-case nil
                        (let ((result (shell-command-to-string "wl-paste -n 2>/dev/null | tr -d \\\\r | head -c 100")))
                          (if (string-empty-p result) "(empty)" result))

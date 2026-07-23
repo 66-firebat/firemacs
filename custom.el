@@ -5,7 +5,7 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   '(avy diff-hl doom-modeline eat embark-consult evil-collection general
+   '(avy diff-hl doom-modeline ghostel embark-consult evil-collection general
 	 kkp magit marginalia orderless pi-coding-agent vertico)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
