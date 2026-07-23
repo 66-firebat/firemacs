@@ -38,6 +38,45 @@
   :hook (ghostel-mode . evil-ghostel-mode))
 
 ;; ════════════════════════════════════════════════════════════════════════════
+;; ── Terminal Width Correction (statuscolumn) ────────────────────────────────
+;; ════════════════════════════════════════════════════════════════════════════
+;; ghostel's --init-buffer reads window-max-chars-per-line which returns the
+;; full window width including any line-prefix (used by statuscolumn).
+;; This makes the terminal too wide — text wraps 7 characters early.
+;;
+;; ghostel--adjust-size reads the GLOBAL value of
+;; window-adjust-process-window-size-function (via default-value), so a
+;; buffer-local setq-local does nothing.  We set the global default to a
+;; wrapper that checks for ghostel-mode and falls through otherwise.
+
+(defun my/ghostel--line-prefix-width ()
+  "Return the string-width of the buffer's line-prefix, or 0."
+  (let ((lp (and (boundp 'line-prefix) line-prefix)))
+    (if (and (stringp lp) (> (length lp) 0))
+        (string-width lp)
+      0)))
+
+(defun my/ghostel-adjust-window-size (process windows)
+  "Return terminal size (WIDTH . HEIGHT) accounting for statuscolumn."
+  (condition-case nil
+      (let ((window (car windows)))
+        (when (window-live-p window)
+          (with-current-buffer (window-buffer window)
+            (when (derived-mode-p 'ghostel-mode)
+              (let* ((mcl (window-max-chars-per-line window))
+                     (lpw (my/ghostel--line-prefix-width))
+                     (tw (max (- mcl lpw) 1)))
+                (cons tw (window-text-height window)))))))
+    (error nil)))
+
+;; Ghostel reads the global default — set it globally and check mode inside.
+(setq-default window-adjust-process-window-size-function
+              (lambda (process windows)
+                (or (my/ghostel-adjust-window-size process windows)
+                    (window-adjust-process-window-size-smallest
+                     process windows))))
+
+;; ════════════════════════════════════════════════════════════════════════════
 ;; ── Indexed Terminal Spawning (M-t) ─────────────────────────────────────────
 ;; ════════════════════════════════════════════════════════════════════════════
 ;; Buffers are named "<index>-<PID>" (e.g., "1-19950").  The lowest
@@ -85,6 +124,13 @@ If DIR is nil or does not exist, `default-directory' is used silently."
                 ((process-live-p proc))
                 (pid (and (boundp 'ghostel--pid) ghostel--pid)))
       (rename-buffer (format "%d-%d" index pid)))
+    ;; Force a resize to correct the initial terminal width for the
+    ;; statuscolumn's line-prefix (ghostel--init-buffer uses
+    ;; window-max-chars-per-line which doesn't account for it).
+    (when (fboundp 'ghostel--adjust-size)
+      (let ((win (get-buffer-window (current-buffer) t)))
+        (when win
+          (ghostel--adjust-size win t))))
     (current-buffer)))
 
 ;; ════════════════════════════════════════════════════════════════════════════
