@@ -215,6 +215,13 @@ Re-runs setup if the terminal was visited but KKP isn't active."
         (message "KKP restart triggered — check *Messages* for [KKP] logs")))))
 
 ;; ---------------------------------------------------------------------------
+;;  3d.  Evil Surround — Quick surround operations
+;; ---------------------------------------------------------------------------
+(use-package evil-surround
+  :ensure t
+  :bind ("C-q" . emacs-surround))
+
+;; ---------------------------------------------------------------------------
 ;;  4.  Leader Key — SPC (Space) is our leader
 ;; ---------------------------------------------------------------------------
 
