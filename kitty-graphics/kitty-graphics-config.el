@@ -53,5 +53,33 @@
 ;; backend (Kitty protocol on Ghostty, Sixel as fallback).
 (kitty-graphics-setup)
 
+;; At startup the terminal may not be fully initialised (KKP, shell
+;; integration, etc. are still setting up).  If kitty-graphics-mode
+;; self-disabled because detection failed, retry after init is done.
+(add-hook 'emacs-startup-hook
+          (lambda ()
+            (unless kitty-graphics-mode
+              (kitty-graphics-mode 1))))
+
+;; ── Diagnostic helper ───────────────────────────────────────────
+
+(defun my/kitty-latex-check ()
+  "Quick diagnostic: verify kitty-graphics + org-latex-preview are wired."
+  (interactive)
+  (require 'org)
+  (with-current-buffer (get-buffer-create "*kitty-latex-check*")
+    (erase-buffer)
+    (insert (format "kitty-graphics-mode: %s\n" kitty-graphics-mode))
+    (insert (format "display-graphic-p:   %s\n" (display-graphic-p)))
+    (insert (format "KITTY_PID env:        %s\n" (getenv "KITTY_PID")))
+    (insert (format "TERM:                 %s\n" (getenv "TERM")))
+    (insert (format "org-latex-preview advised: %s\n"
+                    (advice-member-p #'kitty-graphics--org-latex-preview-advice
+                                     'org-latex-preview)))
+    (insert (format "org--make-preview-overlay advised: %s\n"
+                    (advice-member-p #'kitty-graphics--org-make-preview-overlay-advice
+                                     'org--make-preview-overlay)))
+    (display-buffer (current-buffer))))
+
 (provide 'kitty-graphics-config)
 ;; kitty-graphics-config.el ends here
