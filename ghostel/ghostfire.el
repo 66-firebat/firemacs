@@ -3,7 +3,7 @@
 ;; =============================================================================
 ;;  ghostfire.el — Ghostel terminal emulator configuration for Firemacs
 ;;
-;;  Replaces eat/eaterz.el.  Features:
+;;  Features:
 ;;    - Indexed terminal spawning ("N   PID")
 ;;    - Mode-aware M-t dispatcher (grease → root dir, kill grease after)
 ;;    - Zoxide directory travel via consult + embark (formerly "eaterz")
