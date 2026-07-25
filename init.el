@@ -436,10 +436,13 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 (my/load-module "jumpring.el")       ;; Global C-o/C-i jump ring
 
 ;; ── Terminal ────────────────────────────────────────────────────────────────
-
-;; ── Terminal ────────────────────────────────────────────────────────────────
 ;; Ghostel terminal emulator — all config lives in ghostel/ghostfire.el
 (my/load-module "ghostel/ghostfire.el")
+
+;; ── Terminal Graphics ───────────────────────────────────────────────────────
+;; Kitty/Sixel graphics for images, LaTeX previews, and PDF viewing
+;; Requires a Kitty-protocol-compatible terminal (Ghostty, Kitty, WezTerm)
+(my/load-module "kitty-graphics/kitty-graphics-config.el")
 
 ;; ── Editing ─────────────────────────────────────────────────────────────────
 (my/load-module "embark.el")         ;; Context-aware actions
