@@ -18,6 +18,31 @@
 (require 'cl-lib)
 
 ;; ════════════════════════════════════════════════════════════════════════════
+;; ── Working directory helper ───────────────────────────────────────────────
+;; ════════════════════════════════════════════════════════════════════════════
+;; `default-directory' in a ghostel buffer can be stale — it reflects the
+;; directory at launch time and may not update as the shell `cd`s around.
+;; Ghostel tracks the live cwd via OSC 7 shell integration and exposes it
+;; through `ghostel--get-pwd'.  This helper prefers the OSC 7 value and
+;; falls back to `default-directory' when no OSC 7 has been received yet
+;; (e.g., before the first shell prompt).
+
+(defun my/ghostel-working-dir (&optional buf)
+  "Return the live working directory for ghostel buffer BUF.
+Uses `ghostel--get-pwd' (OSC 7 shell-integration tracking) when available;
+falls back to the buffer's `default-directory' otherwise.
+
+BUF defaults to the current buffer.  Returns nil if BUF is not in
+`ghostel-mode' or has no `ghostel--term'."
+  (with-current-buffer (or buf (current-buffer))
+    (if (and (derived-mode-p 'ghostel-mode)
+             (bound-and-true-p ghostel--term)
+             (fboundp 'ghostel--get-pwd)
+             (ghostel--get-pwd ghostel--term))
+        (ghostel--get-pwd ghostel--term)
+      default-directory)))
+
+;; ════════════════════════════════════════════════════════════════════════════
 ;; ── Core ghostel configuration ─────────────────────────────────────────────
 ;; ════════════════════════════════════════════════════════════════════════════
 
@@ -189,7 +214,27 @@ with no argument (uses `default-directory')."
                                    :test (lambda (_mode key)
                                            (derived-mode-p key))))))
       (funcall handler)
-    (my/ghostel-new)))
+    (my/ghostel-new (my/ghostel-working-dir))))
+
+;; ════════════════════════════════════════════════════════════════════════════
+;; ── Grease-toggle integration ───────────────────────────────────────────────
+;; ════════════════════════════════════════════════════════════════════════════
+;; `grease-toggle' (M-e) reads `default-directory' from the current buffer,
+;; which in ghostel buffers can be stale (reflects launch dir, not the
+;; shell's live cwd).  We advise `grease-toggle' to open grease directly
+;; at `my/ghostel-working-dir' (OSC 7 tracked) when called from ghostel-mode.
+
+(with-eval-after-load 'grease
+  (defun my/ghostel--grease-toggle-advice (orig-fun &rest args)
+    "Advice on `grease-toggle': open grease at ghostel's OSC 7 cwd."
+    (if (derived-mode-p 'ghostel-mode)
+        (if (derived-mode-p 'grease-mode)
+            ;; Already in a grease buffer — just quit (same as vanilla toggle).
+            (apply orig-fun args)
+          ;; In ghostel buffer: open grease at the live working directory.
+          (grease-open (my/ghostel-working-dir)))
+      (apply orig-fun args)))
+  (advice-add 'grease-toggle :around #'my/ghostel--grease-toggle-advice))
 
 ;; ════════════════════════════════════════════════════════════════════════════
 ;; ── Ghostel buffer list helpers ─────────────────────────────────────────────
