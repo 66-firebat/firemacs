@@ -464,7 +464,7 @@ ghostel terminal buffer (the dispatcher guarantees this)."
                  (process-live-p ghostel--process))
             (progn
               (ghostel-send-string (format "cd %s && clear\n" candidate))
-              (message "Ghostfire: cd to %s" candidate))
+              (message " : %s" candidate))
           (user-error "Ghostfire: no active process in this ghostel terminal"))))
     candidate))
 
