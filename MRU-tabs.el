@@ -274,7 +274,7 @@ The MRU is only updated by post-command-hook in the focused window."
              (segments (mapcar (lambda (b)
                                  (let ((sel-p (eq b sel-buf)))
                                    (cons (my/ct--tab-label b sel-p)
-                                         (propertize "  " 'face
+                                         (propertize " " 'face
                                                      (my/ct--tab-face sel-p)))))
                                tabs)))
         ;; Trim rightmost non-selected tabs until everything fits
