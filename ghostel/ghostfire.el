@@ -86,7 +86,7 @@
   "Return the lowest unused ghostel index (1, 2, 3, ...).
 Scans all buffer names for \"<N>-\" prefixes."
   (let ((i 1))
-    (while (let ((target (format "%d-" i)))
+    (while (let ((target (format "%d  " i)))
              (catch 'exists
                (dolist (b (buffer-list) nil)
                  (when (string-prefix-p target (buffer-name b))
@@ -123,7 +123,7 @@ If DIR is nil or does not exist, `default-directory' is used silently."
                            ghostel--process))
                 ((process-live-p proc))
                 (pid (and (boundp 'ghostel--pid) ghostel--pid)))
-      (rename-buffer (format "%d-%d" index pid)))
+      (rename-buffer (format "%d  %d" index pid)))
     ;; Force a resize to correct the initial terminal width for the
     ;; statuscolumn's line-prefix (ghostel--init-buffer uses
     ;; window-max-chars-per-line which doesn't account for it).
@@ -210,7 +210,7 @@ Used by consult-buffer.el to spawn terminals from numeric input."
                          ghostel--process))
               ((process-live-p proc))
               (pid (and (boundp 'ghostel--pid) ghostel--pid)))
-    (rename-buffer (format "%d-%d" index pid)))
+    (rename-buffer (format "%d  %d" index pid)))
   (current-buffer))
 
 ;; ════════════════════════════════════════════════════════════════════════════
