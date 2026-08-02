@@ -399,6 +399,15 @@ When called from inside dired:
 ;; ── Ghostel compose (from inside ghostel buffer) ───────────────
 (define-key global-map (kbd "C-c C-m") 'my/ghostel-compose)
 
+;; ── Ghostel Escape-bind (from inside ghostel buffer) ───────────────
+;; Press ESC in normal state to send a literal Escape key to the terminal.
+;; Useful when a TUI (vim, tmux, htop) is running inside ghostel and you
+;; want ESC to reach the terminal rather than trigger Evil's normal-state
+;; behaviour.
+(evil-define-key 'normal evil-ghostel-mode-map
+    (kbd "<escape>")
+    (lambda () (interactive) (ghostel-send-key "escape")))
+
 ;; ── Zoxide travel dispatch ────────────────────────────────────
 (defun my/zoxide-travel-dispatch ()
   "Dispatch to `ghostfire-travel' or `greaszy-travel' based on context.
