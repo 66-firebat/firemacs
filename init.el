@@ -457,6 +457,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 
 ;; ── Languages ───────────────────────────────────────────────────────────────
 (my/load-module "julia.el")          ;; Julia tree-sitter mode
+(my/load-module "latex/auctex.el")    ;; AUCTeX — LaTeX editing environment
 
 ;; ── Misc ────────────────────────────────────────────────────────────────────
 (my/load-module "pi.el")             ;; AI coding agent frontend
