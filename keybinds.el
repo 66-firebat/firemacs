@@ -421,12 +421,15 @@ Otherwise, open the directory in Grease."
 ;; ── Smart window navigation ────────────────────────────────────
 
 (defun my/smart-other-window ()
-  "Switch to the other window.  If only one window exists, split right first."
+  "Switch to the other window.  If only one window exists, split right first.
+The new window shows the alternate (most recently viewed) buffer,
+falling back to the current buffer if there is none."
   (interactive)
   (if (= (length (window-list)) 1)
-      (progn
+      (let ((alt (or (other-buffer) (current-buffer))))
         (split-window-right)
-        (other-window 1))
+        (other-window 1)
+        (switch-to-buffer alt))
     (other-window 1)))
 
 (defun my/smart-close-window ()
