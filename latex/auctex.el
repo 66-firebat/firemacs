@@ -31,7 +31,11 @@
 
   ;; ── CDLaTeX (bundled) — fast math shorthand ───────────────────────
 
-  (add-hook 'LaTeX-mode-hook 'turn-on-cdlatex))
+  (add-hook 'LaTeX-mode-hook 'turn-on-cdlatex)
+
+  ;; ── Statuscolumn — sc-mode needs explicit re-enable in LaTeX buffers ──
+
+  (add-hook 'LaTeX-mode-hook (lambda () (sc-mode 1))))
 
 (provide 'auctex)
 ;;; auctex.el ends here
