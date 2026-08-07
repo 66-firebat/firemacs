@@ -24,6 +24,17 @@
   (setq TeX-command-default "LatexMk") ; latexmk handles the build loop
   (setq TeX-show-compilation t)        ; Show output in split window
 
+  ;; ── SyncTeX + Sioyek ───────────────────────────────────────────────
+
+  ;; Embed SyncTeX data during compilation so forward/inverse search works.
+  (setq TeX-source-correlate-mode t)
+
+  ;; Configure Sioyek as the PDF viewer.
+  (setq TeX-view-program-list
+        '(("Sioyek" "sioyek --reuse-instance %o")))
+  (setq TeX-view-program-selection
+        '((output-pdf "Sioyek")))
+
   ;; ── RefTeX (built-in) — TOC, citations, cross-references ──────────
 
   (add-hook 'LaTeX-mode-hook 'turn-on-reftex)
