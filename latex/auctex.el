@@ -2,16 +2,18 @@
 ;;;
 ;;; Loaded from init.el via (my/load-module "latex/auctex.el")
 ;;;
-;;; AUCTeX provides the `latex' feature.  `cdlatex' (math shorthand) and
-;;; `reftex' (cross-references) are both bundled — no extra packages needed.
+;;; Architecture:
+;;;   - (:init)  tex-site.el registers .tex → LaTeX-mode on auto-mode-alist
+;;;   - (:defer) AUCTeX (tex.el/latex.el) only loads when first .tex opens
+;;;   - (:config) our settings fire when tex.el loads, before LaTeX-mode runs
 
-(use-package auctex
-  :ensure t
+(use-package tex
+  :ensure auctex
+  :defer t
   :init
-  ;; tex-site.el must load eagerly so AUCTeX registers itself to handle
-  ;; .tex files (via auto-mode-alist).  Without this, the built-in
-  ;; latex-mode from tex-mode.el wins and AUCTeX never activates.
-  ;; tex-site.el is tiny — it only sets up paths and mode detection.
+  ;; tex-site.el must load eagerly so AUCTeX claims .tex files from the
+  ;; built-in latex-mode.  It does NOT load the full tex.el — that's
+  ;; deferred until the first .tex file is opened.
   (require 'tex-site)
   :config
 
@@ -26,10 +28,8 @@
 
   ;; ── SyncTeX + Sioyek ───────────────────────────────────────────────
 
-  ;; Embed SyncTeX data during compilation so forward/inverse search works.
   (setq TeX-source-correlate-mode t)
 
-  ;; Configure Sioyek as the PDF viewer.
   (setq TeX-view-program-list
         '(("Sioyek" "sioyek --reuse-instance %o")))
   (setq TeX-view-program-selection
