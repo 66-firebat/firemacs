@@ -2,43 +2,27 @@
 ;;;
 ;;; Loaded from init.el via (my/load-module "latex/auctex.el")
 
-(message "[auctex] loading...")
-
 ;; ── Ensure AUCTeX is installed ──────────────────────────────────────
 
 (unless (package-installed-p 'auctex)
   (package-refresh-contents)
   (package-install 'auctex))
 
-;; ── Register .tex → LaTeX-mode (must happen at startup) ────────────
+;; ── Register .tex → LaTeX-mode ─────────────────────────────────────
 
-;; AUCTeX is installed in this config's own elpa/ directory, but
-;; package-initialize may not have the path set up yet.  Two fallbacks:
-;;   1. Try require directly (works if load-path already has it).
-;;   2. Otherwise, find the directory and add it ourselves.
-(condition-case err
+(condition-case _
     (progn
-      (message "[auctex] trying require tex-site...")
       (require 'tex-site)
-      ;; tex-site.el doesn't load auctex.el (which defines AUCTeX-version
-      ;; and other package metadata).  Load the autoloads or auctex.el directly.
-      (load "auctex" t t)
-      (message "[auctex] tex-site loaded OK"))
+      (load "auctex" t t))
   (file-missing
-   (message "[auctex] tex-site not on load-path, searching...")
    (let* ((glob (expand-file-name "elpa/auctex-*" user-emacs-directory))
           (dirs (file-expand-wildcards glob)))
-     (message "[auctex] glob=%s dirs=%s" glob dirs)
-     (if dirs
-         (progn
-           (add-to-list 'load-path (car (last dirs)))
-           (message "[auctex] added %s to load-path" (car (last dirs)))
-           (require 'tex-site)
-           (load "auctex" t t)
-           (message "[auctex] tex-site loaded after path fix"))
-       (message "[auctex] WARNING: no auctex dir found")))))
+     (when dirs
+       (add-to-list 'load-path (car (last dirs)))
+       (require 'tex-site)
+       (load "auctex" t t)))))
 
-;; ── All settings (deferred until tex.el actually loads) ─────────────
+;; ── Settings (deferred until AUCTeX loads on first .tex file) ───────
 
 (with-eval-after-load 'tex
 
@@ -55,8 +39,15 @@
 
   (setq TeX-source-correlate-mode t)
 
+  ;; Base viewer: open Sioyek with the PDF.
+  ;; When source-correlate is active (built after compiling with
+  ;; --synctex=1), forward-search args are appended automatically
+  ;; by the mode-io-correlate predicate below.
   (setq TeX-view-program-list
-        '(("Sioyek" "sioyek %o")))
+        '(("Sioyek"
+           ("sioyek %o"
+            (mode-io-correlate
+             " --forward-search-file %s --forward-search-line %n --inverse-search \"emacsclient --no-wait +%2 %1\"")))))
   (setq TeX-view-program-selection
         '((output-pdf "Sioyek")))
 
@@ -69,7 +60,7 @@
 
   (add-hook 'LaTeX-mode-hook 'turn-on-cdlatex)
 
-  ;; ── Statuscolumn — sc-mode needs explicit re-enable ─────────────
+  ;; ── Statuscolumn ────────────────────────────────────────────────
 
   (add-hook 'LaTeX-mode-hook (lambda () (sc-mode 1))))
 
