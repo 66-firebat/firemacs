@@ -39,15 +39,14 @@
 
   (setq TeX-source-correlate-mode t)
 
-  ;; Base viewer: open Sioyek with the PDF.
-  ;; When source-correlate is active (built after compiling with
-  ;; --synctex=1), forward-search args are appended automatically
-  ;; by the mode-io-correlate predicate below.
+  ;; Proven working config from sioyek/discussions#347.
+  ;; Base: sioyek %o  |  Forward search args are appended by mode-io-correlate.
+  ;; %b = base name (no .tex), %n = line number.
   (setq TeX-view-program-list
         '(("Sioyek"
            ("sioyek %o"
             (mode-io-correlate
-             " --forward-search-file %s --forward-search-line %n --inverse-search \"emacsclient --no-wait +%2 %1\"")))))
+             " --forward-search-file %b --forward-search-line %n --inverse-search \"emacsclient --no-wait +%2:%3 %1\"")))))
   (setq TeX-view-program-selection
         '((output-pdf "Sioyek")))
 
