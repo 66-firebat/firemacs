@@ -61,7 +61,39 @@
 
   ;; ── Statuscolumn ────────────────────────────────────────────────
 
-  (add-hook 'LaTeX-mode-hook (lambda () (sc-mode 1))))
+  (add-hook 'LaTeX-mode-hook (lambda () (sc-mode 1)))
+
+  ;; Force font-lock on — AUCTeX sometimes fails to enable it.
+  (add-hook 'LaTeX-mode-hook (lambda () (font-lock-mode 1))))
+
+;; ── Syntax highlighting faces (Firebat dark theme palette) ──────────
+
+(with-eval-after-load 'font-latex
+  ;; Sectioning: warm orange gradient (#ff4400 accent family)
+  (set-face-attribute 'font-latex-sectioning-5-face nil
+                      :foreground "#cc7722" :weight 'bold)
+  (set-face-attribute 'font-latex-sectioning-4-face nil
+                      :foreground "#d48833" :weight 'bold)
+  (set-face-attribute 'font-latex-sectioning-3-face nil
+                      :foreground "#dd9944" :weight 'bold)
+  (set-face-attribute 'font-latex-sectioning-2-face nil
+                      :foreground "#eeaa55" :weight 'bold)
+  (set-face-attribute 'font-latex-sectioning-1-face nil
+                      :foreground "#ffbb66" :weight 'bold)
+  (set-face-attribute 'font-latex-sectioning-0-face nil
+                      :foreground "#ffcc77" :weight 'bold)
+  ;; Math: cool blue to contrast with prose
+  (set-face-attribute 'font-latex-math-face nil
+                      :foreground "#66aacc")
+  ;; Verbatim: muted green
+  (set-face-attribute 'font-latex-verbatim-face nil
+                      :foreground "#88aa88")
+  ;; Strings / special constructs: light green
+  (set-face-attribute 'font-latex-string-face nil
+                      :foreground "#88cc88")
+  ;; Warnings: red
+  (set-face-attribute 'font-latex-warning-face nil
+                      :foreground "#ff6666" :weight 'bold))
 
 (provide 'auctex)
 ;;; auctex.el ends here
