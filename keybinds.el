@@ -443,6 +443,10 @@ falling back to the current buffer if there is none."
 (general-def :keymaps 'override
   "M-e" 'grease-toggle)
 
+;; ── LaTeX — live preview ────────────────────────────────────
+(general-def :keymaps 'LaTeX-mode-map
+  "C-c p" '(my/latexmk-pvc-start :which-key "live preview"))
+
 
 ;; ═════════════════════════════════════════════════════════════════
 ;;  C-a Diagnostic Command

@@ -64,7 +64,44 @@
   (add-hook 'LaTeX-mode-hook (lambda () (sc-mode 1)))
 
   ;; Force font-lock on — AUCTeX sometimes fails to enable it.
-  (add-hook 'LaTeX-mode-hook (lambda () (font-lock-mode 1))))
+  (add-hook 'LaTeX-mode-hook (lambda () (font-lock-mode 1)))
+
+  ;; ── Live preview (latexmk -pvc, auto-start if PDF exists) ───────
+
+  (defvar my/latexmk-pvc-procs (make-hash-table :test 'equal)
+    "Active latexmk -pvc processes keyed by PDF path.")
+
+  (defun my/latexmk-pvc-start ()
+    "Start latexmk -pvc if a corresponding PDF exists.
+If no PDF exists, show instructions for first compilation."
+    (interactive)
+    (if-let* ((tex-file (buffer-file-name))
+              (pdf-file (concat (file-name-sans-extension tex-file) ".pdf")))
+        (if (file-exists-p pdf-file)
+            (unless (gethash pdf-file my/latexmk-pvc-procs)
+              (let ((proc (start-process "latexmk-pvc" nil
+                                         "latexmk" "-pvc" "-pdf"
+                                         (file-name-nondirectory tex-file))))
+                (set-process-sentinel proc
+                  (lambda (_p _e) (remhash pdf-file my/latexmk-pvc-procs)))
+                (puthash pdf-file proc my/latexmk-pvc-procs)
+                (message "[latex] done — live preview is now running")))
+          (message "[latex] No PDF found — run %s first to compile."
+                   (substitute-command-keys "\\[TeX-command-master]")))
+      (message "[latex] Buffer has no file")))
+
+  (defun my/latexmk-pvc-kill ()
+    "Kill the latexmk -pvc process for this buffer's PDF."
+    (when-let* ((tex-file (buffer-file-name))
+                (pdf-file (concat (file-name-sans-extension tex-file) ".pdf"))
+                (proc (gethash pdf-file my/latexmk-pvc-procs)))
+      (when (process-live-p proc) (kill-process proc))
+      (remhash pdf-file my/latexmk-pvc-procs)))
+
+  (add-hook 'LaTeX-mode-hook #'my/latexmk-pvc-start)
+  (add-hook 'LaTeX-mode-hook
+            (lambda ()
+              (add-hook 'kill-buffer-hook #'my/latexmk-pvc-kill nil t))))
 
 ;; ── Syntax highlighting faces (Firebat dark theme palette) ──────────
 
