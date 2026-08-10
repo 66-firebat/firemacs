@@ -547,5 +547,17 @@ Shows the clipboard content, KKP status, and key binding info."
              (if has-8-6u-buf "YES!" "no")
              buf-size buf-preview)))
 
+;; ── ESC always quits the minibuffer ────────────────────────────
+;; Minibuffer runs in emacs-state under Evil, where ESC is unbound.
+;; Bind it to abort-recursive-edit (what C-g does) so Vim users can
+;; dismiss any minibuffer prompt with ESC.
+
+(dolist (map (list minibuffer-local-map
+                   minibuffer-local-ns-map
+                   minibuffer-local-completion-map
+                   minibuffer-local-must-match-map
+                   minibuffer-local-isearch-map))
+  (define-key map [escape] #'abort-recursive-edit))
+
 (provide 'keybinds)
 ;; keybinds.el ends here
