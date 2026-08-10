@@ -85,6 +85,7 @@ If no PDF exists, show instructions for first compilation."
                 (set-process-sentinel proc
                   (lambda (_p _e) (remhash pdf-file my/latexmk-pvc-procs)))
                 (puthash pdf-file proc my/latexmk-pvc-procs)
+                (add-hook 'kill-buffer-hook #'my/latexmk-pvc-kill nil t)
                 (message "[latex] done — live preview is now running")))
           (message "[latex] No PDF found — run %s first to compile."
                    (substitute-command-keys "\\[TeX-command-master]")))
