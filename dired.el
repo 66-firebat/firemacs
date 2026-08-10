@@ -31,6 +31,19 @@
   (interactive)
   (find-alternate-file ".."))
 
+;; ── Smart create: file or directory based on trailing / ──
+
+(defun my/dired-create-file-or-dir ()
+  "Create a new file or directory in the current Dired buffer.
+Prompts for a name.  If the input ends with \"/\", creates a directory.
+Otherwise creates an empty file."
+  (interactive)
+  (let* ((name (read-string "Create: "))
+         (full (expand-file-name name default-directory)))
+    (if (string-suffix-p "/" name)
+        (dired-create-directory (directory-file-name name))
+      (dired-create-empty-file name))))
+
 ;; Use evil-define-key (via general-def) to override evil-collection's
 ;; bindings.  Plain define-key on dired-mode-map won't work because
 ;; evil-collection puts its bindings in evil auxiliary keymaps which
@@ -41,7 +54,8 @@
 (general-def 'normal dired-mode-map
   "RET" 'dired-find-alternate-file
   "^"   'my/dired-up-directory
-  "-"   'my/dired-up-directory)
+  "-"   'my/dired-up-directory
+  "o"   'my/dired-create-file-or-dir)
 
 
 (provide 'dired-overrides)
