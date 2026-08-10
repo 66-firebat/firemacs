@@ -1,4 +1,4 @@
-;;; auctex.el — AUCTeX configuration for LaTeX editing
+;;; auctex.el — AUCTeX configuration for LaTeX editing  -*- lexical-binding: t; -*-
 ;;;
 ;;; Loaded from init.el via (my/load-module "latex/auctex.el")
 
