@@ -96,12 +96,7 @@ If no PDF exists, show instructions for first compilation."
                 (pdf-file (concat (file-name-sans-extension tex-file) ".pdf"))
                 (proc (gethash pdf-file my/latexmk-pvc-procs)))
       (when (process-live-p proc) (kill-process proc))
-      (remhash pdf-file my/latexmk-pvc-procs)))
-
-  (add-hook 'LaTeX-mode-hook #'my/latexmk-pvc-start)
-  (add-hook 'LaTeX-mode-hook
-            (lambda ()
-              (add-hook 'kill-buffer-hook #'my/latexmk-pvc-kill nil t))))
+      (remhash pdf-file my/latexmk-pvc-procs))))
 
 ;; ── Syntax highlighting faces (Firebat dark theme palette) ──────────
 
