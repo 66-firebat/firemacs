@@ -279,6 +279,23 @@ When called from inside dired:
             (dired (with-current-buffer term-buf default-directory))
           (dired default-directory)))))))
 
+;; ══════════════════════════════════════════════════════════════
+;;  Quick Dired — open dired in the current directory, no prompt
+;; ══════════════════════════════════════════════════════════════
+
+(defun my/dired-default-directory ()
+  "Toggle Dired in the current buffer's `default-directory'.
+If not in Dired: open Dired with no prompt.
+If already in Dired: kill the Dired buffer and return to the previous buffer."
+  (interactive)
+  (if (derived-mode-p 'dired-mode)
+      (let ((prev (or (other-buffer (current-buffer) t)
+                      (other-buffer))))
+        (kill-buffer (current-buffer))
+        (when (and prev (buffer-live-p prev))
+          (switch-to-buffer prev)))
+    (dired default-directory)))
+
 ;; ═════════════════════════════════════════════════════════════════
 ;;  SPC leader keybindings
 ;; ═════════════════════════════════════════════════════════════════
@@ -441,7 +458,7 @@ falling back to the current buffer if there is none."
 
 ;; ── Grease — Oil.nvim-style file manager ─────────────────────
 (general-def :keymaps 'override
-  "M-e" 'grease-toggle)
+  "M-e" 'my/dired-default-directory)
 
 ;; ── LaTeX — live preview ────────────────────────────────────
 (general-def :keymaps 'LaTeX-mode-map
