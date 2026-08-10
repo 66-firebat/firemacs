@@ -426,14 +426,38 @@ If already in Dired: kill the Dired buffer and return to the previous buffer."
     (lambda () (interactive) (ghostel-send-key "escape")))
 
 ;; ── Zoxide travel dispatch ────────────────────────────────────
+
+(defun my/zoxide-travel-to-dired ()
+  "Select a directory from zoxide and open it in Dired.
+Uses the same consult-based zoxide pipeline as ghostfire-travel."
+  (interactive)
+  (ghostfire--check-deps)
+  (let ((candidate
+         (consult--read
+          (consult--process-collection #'ghostfire-consult-builder
+            :transform (consult--async-map #'ghostfire-consult-format))
+          :async-wrap #'ghostfire--async-wrap
+          :keymap ghostfire-consult-map
+          :prompt "󰡦 : "
+          :category 'ghostfire-path
+          :require-match t
+          :sort nil
+          :lookup (lambda (selected &rest _)
+                    (when selected
+                      (or (cdr (ghostfire-parse-score-line selected))
+                          selected))))))
+    (when candidate
+      (dired candidate))))
+
 (defun my/zoxide-travel-dispatch ()
-  "Dispatch to `ghostfire-travel' or `greaszy-travel' based on context.
+  "Dispatch to `ghostfire-travel' or `my/zoxide-travel-to-dired' based on context.
 In a ghostel terminal buffer, cd into the selected directory.
-Otherwise, open the directory in Grease."
+Otherwise, open the directory in Dired."
   (interactive)
   (if (derived-mode-p 'ghostel-mode)
       (call-interactively #'ghostfire-travel)
-    (call-interactively #'greaszy-travel)))
+    ;; (call-interactively #'greaszy-travel)  ; old: open in Grease
+    (call-interactively #'my/zoxide-travel-to-dired)))
 
 ;; ── Smart window navigation ────────────────────────────────────
 
