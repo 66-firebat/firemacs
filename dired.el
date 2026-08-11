@@ -44,6 +44,24 @@ Otherwise creates an empty file."
         (dired-create-directory (directory-file-name name))
       (dired-create-empty-file name))))
 
+;; ── Open file with system handler ──
+
+(defun my/dired-xdg-open ()
+  "Open the file at point with the system default application (xdg-open).
+Directories are ignored with a message."
+  (interactive)
+  (let ((file (dired-get-filename)))
+    (cond
+     ((null file)
+      (user-error "Not on a file line"))
+     ((file-directory-p file)
+      (message "Not a file: %s" (file-name-nondirectory file)))
+     ((not (executable-find "xdg-open"))
+      (user-error "xdg-open not found in PATH"))
+     (t
+      (start-process "dired-xdg-open" nil "xdg-open" file)
+      (message "Opened: %s" (file-name-nondirectory file))))))
+
 ;; Use evil-define-key (via general-def) to override evil-collection's
 ;; bindings.  Plain define-key on dired-mode-map won't work because
 ;; evil-collection puts its bindings in evil auxiliary keymaps which
@@ -55,7 +73,8 @@ Otherwise creates an empty file."
   "RET" 'dired-find-alternate-file
   "^"   'my/dired-up-directory
   "-"   'my/dired-up-directory
-  "o"   'my/dired-create-file-or-dir)
+  "o"   'my/dired-create-file-or-dir
+  "<S-return>" 'my/dired-xdg-open)
 
 
 (provide 'dired-overrides)
