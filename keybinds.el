@@ -127,14 +127,16 @@ n/N works with the same search pattern."
               evil-regexp-search t)))))
 
 (defun my/consult-ripgrep-with-jump ()
-  "Push current position to jump ring, then call `consult-ripgrep'.
+  "Push current position to jump ring, then call `consult-ripgrep` forced
+strictly to `default-directory` as its search root.
 After selection, push the user's typed input into the search ring so
 n/N works with the same search pattern."
   (interactive)
   (evil-set-jump)
-  (let ((search-string nil))
+  (let ((search-string nil)
+        (target-dir default-directory))
     (condition-case nil
-        (call-interactively 'consult-ripgrep)
+        (consult-ripgrep target-dir)
       (quit nil))
     (when (and (bound-and-true-p consult--grep-history)
                (car-safe consult--grep-history))
