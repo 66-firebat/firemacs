@@ -74,8 +74,9 @@ Directories are ignored with a message."
   "^"   'my/dired-up-directory
   "-"   'my/dired-up-directory
   "o"   'my/dired-create-file-or-dir
-  "<S-return>" 'my/dired-xdg-open)
-
+  "<S-return>" 'my/dired-xdg-open
+  "s"   'my/consult-line-with-jump
+  "S"   'my/consult-ripgrep-with-jump)
 
 (provide 'dired-overrides)
 ;; dired.el ends here
