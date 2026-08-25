@@ -288,14 +288,10 @@ When called from inside dired:
 (defun my/dired-default-directory ()
   "Toggle Dired in the current buffer's `default-directory'.
 If not in Dired: open Dired with no prompt.
-If already in Dired: kill the Dired buffer and return to the previous buffer."
+If already in Dired: kill the Dired buffer."
   (interactive)
   (if (derived-mode-p 'dired-mode)
-      (let ((prev (or (other-buffer (current-buffer) t)
-                      (other-buffer))))
-        (kill-buffer (current-buffer))
-        (when (and prev (buffer-live-p prev))
-          (switch-to-buffer prev)))
+      (kill-buffer (current-buffer))
     (dired default-directory)))
 
 ;; ═════════════════════════════════════════════════════════════════
