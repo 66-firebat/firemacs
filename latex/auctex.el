@@ -87,7 +87,7 @@ If no PDF exists, show instructions for first compilation."
                 (puthash pdf-file proc my/latexmk-pvc-procs)
                 (add-hook 'kill-buffer-hook #'my/latexmk-pvc-kill nil t)
                 (message "[latex] done — live preview is now running")))
-          (message "[latex] No PDF found — run %s first to compile."
+          (message "[latex] No PDF found — run TeX-command-master via %s first to compile."
                    (substitute-command-keys "\\[TeX-command-master]")))
       (message "[latex] Buffer has no file")))
 
