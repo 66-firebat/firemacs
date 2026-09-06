@@ -64,10 +64,10 @@
 (defvar ghostfire-consult-map nil
   "Keymap used in the ghostfire zoxide travel minibuffer (defined in ghostfire.el).")
 
-(defvar my/broot-buffer-prefix "*broot*"
+(defvar my/broot-buffer-prefix "broot"
   "Buffer-name prefix used for new broot session buffers.
-`generate-new-buffer' uniquifies (\"*broot*\", \"*broot*<2>\", ...), which
-is what allows several broot sessions to be open at once.")
+`generate-new-buffer' uniquifies (\"broot\", \"broot<2>\", ...), which is
+what allows several broot sessions to be open at once.")
 
 ;; ── Major mode ───────────────────────────────────────────────────
 
