@@ -3,15 +3,19 @@
 ;; =============================================================================
 ;;  broot.el — Broot (terminal file manager) for Firemacs
 ;;
-;;  `M-e' (`my/broot-default-directory') toggles a broot session in the current
-;;  window, rooted at the current buffer's `default-directory' — the broot
-;;  analogue of `my/dired-default-directory' (keybinds.el).
+;;  `M-e' (`my/broot-default-directory') toggles a broot session rooted at
+;;  `default-directory'.  The toggle is BUFFER-based: if the current buffer is
+;;  a broot session (in `broot-mode') it is closed; otherwise a new session is
+;;  opened.  No session uniqueness is enforced, so several broot buffers can
+;;  be open at once — the broot analogue of `my/dired-default-directory'
+;;  (keybinds.el).
 ;;
 ;;  `M-z' routes through `my/zoxide-travel-dispatch' (keybinds.el):
 ;;    - plain Ghostel terminal  -> `ghostfire-travel' (cd the shell)
 ;;    - broot session / any other buffer -> `my/zoxide-travel-to-broot',
 ;;      which picks a directory from zoxide and opens a broot session rooted
-;;      there, replacing the current window's broot session if one is open.
+;;      there.  When invoked from inside a broot session, that session is
+;;      replaced (rerooted); other broot sessions are left untouched.
 ;;
 ;;  Session model
 ;;  -------------
@@ -21,18 +25,13 @@
 ;;    from a plain terminal via `(derived-mode-p 'broot-mode)'.  The buffer is
 ;;    put in `broot-mode' BEFORE `ghostel-exec' spawns the process, because
 ;;    ghostel refuses major-mode changes while a terminal process is live.
-;;  - Per window: each window owns at most one broot session, recorded in the
-;;    window parameter `my/broot-session' (the session's buffer).  Follows the
-;;    per-window isolation philosophy used by MRU-tabs.el.
 ;;  - A session is a Ghostel terminal whose process *is* broot (spawned with
 ;;    `ghostel-exec', no shell in between), so the buffer IS the broot
 ;;    session.  Quitting broot exits the process, and ghostel then auto-kills
-;;    the buffer (`ghostel-kill-buffer-on-exit') — our local
-;;    `kill-buffer-hook' drops the window parameter at the same time.
-;;  - Toggle: M-e in a window that owns a live broot session closes it (kills
-;;    the buffer, hence broot).  Otherwise a new session is spawned in the
-;;    current window.  No return-to-previous-buffer bookkeeping — parity with
-;;    `my/dired-default-directory'.
+;;    the buffer (`ghostel-kill-buffer-on-exit').
+;;  - Sessions are ordinary buffers: they live in whichever window shows
+;;    them, may be opened in any number of windows, and closing one never
+;;    touches the others.
 ;;
 ;;  Selection wiring
 ;;  ----------------
@@ -65,13 +64,10 @@
 (defvar ghostfire-consult-map nil
   "Keymap used in the ghostfire zoxide travel minibuffer (defined in ghostfire.el).")
 
-(defvar my/broot-session-param 'my/broot-session
-  "Window parameter key that stores a window's broot session buffer.
-The value is the `broot-mode' ghostel buffer running broot, or nil.")
-
 (defvar my/broot-buffer-prefix "*broot*"
   "Buffer-name prefix used for new broot session buffers.
-`generate-new-buffer' uniquifies (\"*broot*\", \"*broot*<2>\", ...).")
+`generate-new-buffer' uniquifies (\"*broot*\", \"*broot*<2>\", ...), which
+is what allows several broot sessions to be open at once.")
 
 ;; ── Major mode ───────────────────────────────────────────────────
 
@@ -87,41 +83,12 @@ once a terminal process is live."
   ;; Broot-specific buffer setup can be added here as the feature grows.
   )
 
-;; ── Window-parameter bookkeeping ─────────────────────────────────
-
-(defun my/broot--forget-buffer (buffer)
-  "Forget BUFFER in every window that references it as its broot session."
-  (dolist (frame (frame-list))
-    (dolist (win (window-list frame))
-      (when (eq (window-parameter win my/broot-session-param) buffer)
-        (set-window-parameter win my/broot-session-param nil)))))
-
-(defun my/broot--on-kill ()
-  "Buffer-local `kill-buffer-hook': drop this session from all windows."
-  (my/broot--forget-buffer (current-buffer)))
-
-(defun my/broot--session-buffer (&optional window)
-  "Return WINDOW's live broot session buffer, or nil.
-WINDOW defaults to the selected window.  A session is only considered open
-when its buffer is live and in `broot-mode' (a plain Ghostel terminal never
-qualifies).  A recorded buffer that fails those checks is forgotten."
-  (let* ((win (or window (selected-window)))
-         (buf (window-parameter win my/broot-session-param)))
-    (cond
-     ((and (buffer-live-p buf)
-           (with-current-buffer buf (derived-mode-p 'broot-mode)))
-      buf)
-     (buf
-      (set-window-parameter win my/broot-session-param nil)
-      nil))))
-
 ;; ── Spawn ────────────────────────────────────────────────────────
 
 (defun my/broot--open (dir)
-  "Open a broot session rooted at DIR in the selected window.
-Spawns broot as a Ghostel terminal process via `ghostel-exec' and records
-the session buffer in the selected window's `my/broot-session' parameter.
-Returns the session buffer."
+  "Open a broot session rooted at DIR in the current window.
+Spawns broot as a Ghostel terminal process via `ghostel-exec' and returns
+the new `broot-mode' session buffer."
   (require 'ghostel nil t)            ; ghostel-exec is not autoloaded
   (let* ((broot-exe (executable-find "broot"))
          (dir (file-name-as-directory (expand-file-name dir))))
@@ -137,8 +104,7 @@ Returns the session buffer."
               (setq default-directory dir)
               ;; Establish broot-mode (derived from ghostel-mode) BEFORE the
               ;; process spawn; ghostel blocks mode changes on live buffers.
-              (broot-mode)
-              (add-hook 'kill-buffer-hook #'my/broot--on-kill nil t))
+              (broot-mode))
             ;; Display in the current window first so ghostel sizes the
             ;; terminal against it (same order `ghostel--create' uses).
             (pop-to-buffer buf (append display-buffer--same-window-action
@@ -150,7 +116,6 @@ Returns the session buffer."
               (let ((win (get-buffer-window buf t)))
                 (when win
                   (ghostel--adjust-size win t))))
-            (set-window-parameter (selected-window) my/broot-session-param buf)
             (message "broot: %s" dir)
             buf)
         ((error quit)
@@ -166,53 +131,57 @@ Uses the same consult-based zoxide pipeline as `ghostfire-travel' (shared
 builder, formatter, keymap, and prompt; embark +/− frecency actions work).
 
 The selected directory becomes the root of a new broot session in the
-current window.  If the current window already owns a live broot session,
-that session is replaced (killed) first — a quick \"reroot\" while browsing.
+current window.  When invoked from inside a broot session, that session is
+replaced (killed) first — a quick \"reroot\" while browsing; any other
+open broot sessions are left untouched.
 
 Callable from any buffer (e.g. M-x); the M-z dispatcher routes plain
 Ghostel terminals to `ghostfire-travel' instead."
   (interactive)
   (ghostfire--check-deps)
-  (let* ((win (selected-window))
-         (candidate
-          (consult--read
-           (consult--process-collection #'ghostfire-consult-builder
-             :transform (consult--async-map #'ghostfire-consult-format))
-           :async-wrap #'ghostfire--async-wrap
-           :keymap ghostfire-consult-map
-           :prompt "󰡦 : "
-           :category 'ghostfire-path
-           :require-match t
-           :sort nil
-           :lookup (lambda (selected &rest _)
-                     (when selected
-                       (or (cdr (ghostfire-parse-score-line selected))
-                           selected))))))
+  (let ((candidate
+         (consult--read
+          (consult--process-collection #'ghostfire-consult-builder
+            :transform (consult--async-map #'ghostfire-consult-format))
+          :async-wrap #'ghostfire--async-wrap
+          :keymap ghostfire-consult-map
+          :prompt "󰡦 : "
+          :category 'ghostfire-path
+          :require-match t
+          :sort nil
+          :lookup (lambda (selected &rest _)
+                    (when selected
+                      (or (cdr (ghostfire-parse-score-line selected))
+                          selected))))))
     (when candidate
-      ;; Reroot: drop this window's live broot session, if any.
-      (when-let ((session (my/broot--session-buffer win)))
-        (kill-buffer session))
+      ;; Reroot: when we are inside a broot session, replace it.
+      (when (derived-mode-p 'broot-mode)
+        (kill-buffer (current-buffer)))
       (my/broot--open candidate))))
 
 ;; ── Command ──────────────────────────────────────────────────────
 
 (defun my/broot-default-directory ()
-  "Toggle a broot session in the current window at `default-directory'.
+  "Toggle a broot session at the current buffer's `default-directory'.
+
+If the current buffer is a broot session (in `broot-mode'), close it:
+the session buffer — and therefore the broot process — is killed.
+Otherwise, open a new broot session rooted at `default-directory' with no
+prompt.
 
 Parity with `my/dired-default-directory':
-  - Broot starts at the current buffer's `default-directory' — no prompt.
-  - If the current window already owns a live broot session, pressing M-e
-    closes it: the session buffer (and thus the broot process) is killed.
-  - No previous-buffer restoration after closing.
-
-Quitting broot normally also ends the session: ghostel kills the buffer
-when the process exits (`ghostel-kill-buffer-on-exit')."
+  - Opening always spawns a fresh session in the current window; there is
+    no uniqueness or focus-existing logic, so multiple broot buffers can
+    be open at once.
+  - Closing just kills the current broot buffer: no previous-buffer
+    restoration, and if the buffer is shown in several windows it closes
+    everywhere.
+  - Quitting broot normally also ends the session: ghostel kills the
+    buffer when the process exits (`ghostel-kill-buffer-on-exit')."
   (interactive)
-  (if-let ((session (my/broot--session-buffer)))
-      (progn
-        (kill-buffer session)
-        (unless (buffer-live-p session)
-          (message "broot closed")))
+  (if (derived-mode-p 'broot-mode)
+      (when (kill-buffer (current-buffer))
+        (message "broot closed"))
     (my/broot--open default-directory)))
 
 (provide 'broot)
