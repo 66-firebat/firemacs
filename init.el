@@ -449,6 +449,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 ;; ── File Manager ────────────────────────────────────────────────
 (my/load-module "options/grease-options.el") ;; Grease option switches (pre-load)
 (my/load-module "grease/grease.el")       ;; Oil.nvim-style writable file manager
+(my/load-module "broot/broot.el")         ;; Broot terminal file manager (M-e)
 
 ;; ── Orderless Completion Addons ─────────────────────────────────────────────
 (my/load-module "orderless.el")      ;; Flexible completion style

@@ -478,9 +478,9 @@ falling back to the current buffer if there is none."
       (message "Last window in frame, doing nothing")
     (delete-window)))
 
-;; ── Grease — Oil.nvim-style file manager ─────────────────────
+;; ── Broot — terminal file manager ─────────────────────────────
 (general-def :keymaps 'override
-  "M-e" 'my/dired-default-directory)
+  "M-e" 'my/broot-default-directory)
 
 ;; ── LaTeX — live preview ────────────────────────────────────
 (general-def :keymaps 'LaTeX-mode-map
