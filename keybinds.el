@@ -448,14 +448,23 @@ Uses the same consult-based zoxide pipeline as ghostfire-travel."
       (dired candidate))))
 
 (defun my/zoxide-travel-dispatch ()
-  "Dispatch to `ghostfire-travel' or `my/zoxide-travel-to-dired' based on context.
-In a ghostel terminal buffer, cd into the selected directory.
-Otherwise, open the directory in Dired."
+  "Dispatch zoxide directory travel based on context.
+
+In a plain Ghostel terminal buffer, call `ghostfire-travel' to cd the
+terminal shell to the selected directory.
+
+In a broot session (`broot-mode') or any other buffer, call
+`my/zoxide-travel-to-broot' to open a broot session rooted at the
+selected directory (replacing the current window's broot session when
+one is open)."
   (interactive)
-  (if (derived-mode-p 'ghostel-mode)
-      (call-interactively #'ghostfire-travel)
-    ;; (call-interactively #'greaszy-travel)  ; old: open in Grease
-    (call-interactively #'my/zoxide-travel-to-dired)))
+  (cond
+   ((derived-mode-p 'broot-mode)
+    (call-interactively #'my/zoxide-travel-to-broot))
+   ((derived-mode-p 'ghostel-mode)
+    (call-interactively #'ghostfire-travel))
+   (t
+    (call-interactively #'my/zoxide-travel-to-broot))))
 
 ;; ── Smart window navigation ────────────────────────────────────
 
