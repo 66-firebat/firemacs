@@ -127,14 +127,18 @@ n/N works with the same search pattern."
               evil-regexp-search t)))))
 
 (defun my/consult-ripgrep-with-jump ()
-  "Push current position to jump ring, then call `consult-ripgrep` forced
-strictly to `default-directory` as its search root.
+  "Push current position to jump ring, then call `consult-ripgrep' forced
+strictly to `default-directory' as its search root.  When invoked from a
+broot session the root is first refreshed from broot's live process
+directory (`my/broot-sync-default-directory'), so the search follows the
+directory currently focused in broot.
 After selection, push the user's typed input into the search ring so
 n/N works with the same search pattern."
   (interactive)
   (evil-set-jump)
   (let ((search-string nil)
-        (target-dir default-directory))
+        (target-dir (or (my/broot-sync-default-directory)
+                        default-directory)))
     (condition-case nil
         (consult-ripgrep target-dir)
       (quit nil))

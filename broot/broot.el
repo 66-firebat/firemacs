@@ -123,6 +123,59 @@ the new `broot-mode' session buffer."
            (kill-buffer buf))
          (signal (car err) (cdr err)))))))
 
+;; ── On-demand working-directory query ───────────────────────────
+;; A broot session keeps its own process working directory synced to the
+;; focused panel's root (`update_work_dir` in broot's config, default on).
+;; These functions read that directory from `/proc/<pid>/cwd` (Linux) at the
+;; moment they are called — no polling, no timers, no hooks.  Call them from
+;; your own commands when you need broot's current directory.
+
+(defun my/broot-current-directory (&optional buffer)
+  "Return the directory broot is currently rooted at for BUFFER.
+
+BUFFER defaults to the current buffer; it must be a live `broot-mode'
+session.  The directory is read synchronously from the broot process's
+working directory (`/proc/<pid>/cwd`, Linux), which broot keeps synced to
+the focused panel's root.
+
+Return nil, silently, when BUFFER is not a broot session.  When BUFFER is
+a broot session but the broot process directory cannot be determined, log
+a message about the failed lookup and return nil."
+  (let* ((buf (or buffer (current-buffer)))
+         (in-broot (and (buffer-live-p buf)
+                        (with-current-buffer buf
+                          (derived-mode-p 'broot-mode))))
+         (pid (and in-broot (buffer-local-value 'ghostel--pid buf)))
+         (proc-cwd (and pid (format "/proc/%s/cwd" pid)))
+         (dir (and proc-cwd
+                   (file-exists-p proc-cwd)
+                   (file-symlink-p proc-cwd))))
+    (cond
+     (dir
+      (file-name-as-directory dir))
+     (in-broot
+      (message (concat "broot: failed to find the broot process of this "
+                       "session (%s); cannot sync the working directory")
+               (cond
+                ((null pid) "no pid recorded (ghostel--pid is nil)")
+                ((not (file-exists-p proc-cwd))
+                 (format "process %s is gone" pid))
+                (t (format "could not read %s" proc-cwd))))
+      nil))))
+
+(defun my/broot-sync-default-directory (&optional buffer)
+  "Refresh BUFFER's `default-directory' from the live broot process.
+
+BUFFER defaults to the current buffer.  When BUFFER is a broot session and
+its current directory can be determined, set `default-directory'
+buffer-locally to it and return it.  Otherwise return nil (following the
+nil/message rules of `my/broot-current-directory')."
+  (let ((buf (or buffer (current-buffer))))
+    (when-let ((dir (my/broot-current-directory buf)))
+      (with-current-buffer buf
+        (setq-local default-directory dir))
+      dir)))
+
 ;; ── Zoxide travel ────────────────────────────────────────────────
 
 (defun my/zoxide-travel-to-broot ()
