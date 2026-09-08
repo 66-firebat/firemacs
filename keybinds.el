@@ -7,6 +7,12 @@
 ;;  The `leader` key is defined in init.el (general-create-definer).
 ;; =============================================================================
 
+;; Cross-module functions referenced at runtime.  init.el loads broot/broot.el
+;; before this file (keybinds.el), so the calls below are always defined when
+;; the commands run; the declarations silence byte-compiler warnings and
+;; document the dependency in case the load order is ever reworked.
+(declare-function my/broot-sync-default-directory "broot/broot.el" (&optional buffer))
+
 ;; ── Tab navigation (all modes) ──────────────────────────────
 ;; C-h / C-l to switch tabs via MRU-tabs.
 ;; Window navigation uses Evil's built-in C-w h/j/k/l.
@@ -137,7 +143,12 @@ n/N works with the same search pattern."
   (interactive)
   (evil-set-jump)
   (let ((search-string nil)
-        (target-dir (or (my/broot-sync-default-directory)
+        ;; In a broot session the buffer's default-directory can be stale;
+        ;; refresh it from broot's live process directory.  The fboundp guard
+        ;; keeps this order-independent if keybinds.el is ever evaluated
+        ;; before broot.el has been loaded.
+        (target-dir (or (and (fboundp 'my/broot-sync-default-directory)
+                             (my/broot-sync-default-directory))
                         default-directory)))
     (condition-case nil
         (consult-ripgrep target-dir)
