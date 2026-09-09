@@ -17,6 +17,12 @@
 
 (require 'cl-lib)
 
+;; Cross-module function referenced at run time by `my/ghostel-new-from-broot'
+;; (broot.el loads after this file in init.el; the handler guards with
+;; `fboundp').  The declaration silences the byte-compiler and documents the
+;; dependency.
+(declare-function my/broot-sync-default-directory "broot/broot.el" (&optional buffer))
+
 ;; ════════════════════════════════════════════════════════════════════════════
 ;; ── Working directory helper ───────────────────────────────────────────────
 ;; ════════════════════════════════════════════════════════════════════════════
@@ -177,12 +183,31 @@ If DIR is nil or does not exist, `default-directory' is used silently."
 ;; If no match, falls through to `my/ghostel-new'.
 
 (defvar my/ghostel-new-dispatch-alist
-  '((grease-mode . my/ghostel-new-from-grease))
+  '((broot-mode . my/ghostel-new-from-broot))
   "Alist mapping major-mode symbols to ghostel-spawn handler functions.
 Each handler is called with no arguments and should call `my/ghostel-new'
 with an appropriate directory (or no argument for `default-directory').
 The dispatcher uses `derived-mode-p', so entries match any mode derived
 from the key symbol.")
+
+(defun my/ghostel-new-from-broot ()
+  "Spawn ghostel rooted at the directory broot is currently showing.
+Reads broot's live working directory via `my/broot-sync-default-directory'
+(the same on-demand, procfs-based sync used by
+`my/consult-ripgrep-with-jump'), so the new terminal starts where broot is
+rooted at the moment M-t is pressed.
+
+If broot.el isn't loaded or the broot process directory can't be read,
+warns and falls through to `my/ghostel-new' in `default-directory'."
+  (if (fboundp 'my/broot-sync-default-directory)
+      (my/ghostel-new (or (my/broot-sync-default-directory)
+                          default-directory))
+    (display-warning
+     'ghostel
+     (concat "broot-mode detected but broot.el is not loaded; "
+             "spawning in default-directory")
+     :warning)
+    (my/ghostel-new)))
 
 (defcustom my/ghostel-kill-grease-on-spawn t
   "When non-nil, kill the grease buffer after spawning a ghostel terminal from it.
@@ -219,7 +244,8 @@ buffer after spawning to prevent clutter."
   "Spawn a new ghostel terminal, mode-aware.
 When the current buffer uses a mode listed in `my/ghostel-new-dispatch-alist',
 calls the associated handler.  Otherwise falls through to `my/ghostel-new'
-with no argument (uses `default-directory')."
+rooted at `my/ghostel-working-dir' (a terminal's live OSC 7 cwd when
+available, else `default-directory')."
   (interactive)
   (if-let ((handler (cdr (cl-assoc major-mode my/ghostel-new-dispatch-alist
                                    :test (lambda (_mode key)
