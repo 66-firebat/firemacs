@@ -104,12 +104,14 @@ BUF defaults to the current buffer.  Returns nil if BUF is not in
 ;; ════════════════════════════════════════════════════════════════════════════
 ;; ── Indexed Terminal Spawning (M-t) ─────────────────────────────────────────
 ;; ════════════════════════════════════════════════════════════════════════════
-;; Buffers are named "<index>-<PID>" (e.g., "1-19950").  The lowest
-;; free index is reused first.  Bound to M-t in keybinds.el.
+;; Buffers are named "<index><sep><label>" (e.g., "1  bash") where the label
+;; is the name of the process currently running in the terminal — the shell
+;; at rest, the foreground job's leader while one runs.  The lowest free
+;; index is reused first.  Bound to M-t in keybinds.el.
 
 (defun my/ghostel-next-available ()
   "Return the lowest unused ghostel index (1, 2, 3, ...).
-Scans all buffer names for \"<N>-\" prefixes."
+Scans all buffer names for \"<N><sep>\" prefixes."
   (let ((i 1))
     (while (let ((target (format "%d  " i)))
              (catch 'exists
@@ -121,7 +123,9 @@ Scans all buffer names for \"<N>-\" prefixes."
 
 (defun my/ghostel-new (&optional dir)
   "Spawn a new ghostel terminal at the lowest available index.
-Buffer is named like \"1-19950\" (index-PID).
+Buffer is named \"<index><sep><label>\" where the label is the process
+currently running in the terminal (see `my/ghostel-name-sep' and
+`my/ghostel--fg-name').
 
 The shell starts in `default-directory', or in DIR when DIR names an
 existing directory.  If DIR is a file, its parent directory is used.
@@ -143,7 +147,8 @@ If DIR is nil or does not exist, `default-directory' is used silently."
     ;; ghostel-buffer-name dynamically (crashes the native module).
     (let ((default-directory cwd))
       (ghostel t))
-    ;; Rename to include our index + PID (stored in ghostel--pid).
+    ;; Rename to \"<index><sep><PID>\" first; the deferred ghostel-mode-hook
+    ;; relabel then swaps the PID for the live process name.
     (when-let* ((proc (and (boundp 'ghostel--process)
                            ghostel--process))
                 ((process-live-p proc))
@@ -610,5 +615,162 @@ Type your text with full Emacs editing, then:
     (add-to-list 'ghostel-keymap-exceptions key))
   (when (fboundp 'ghostel--rebuild-semi-char-keymap)
     (ghostel--rebuild-semi-char-keymap)))
+;; ════════════════════════════════════════════════════════════════════════════
+;; ── Live process-name buffer labels ─────────────────────────────────────────
+;; ════════════════════════════════════════════════════════════════════════════
+;; Managed ghostel buffer names are "<index><sep><label>", e.g. "1  bash":
+;; the label is the name of the process currently running in the terminal —
+;; the shell at rest, the foreground job's leader while one runs.  Updates
+;; are event-driven off ghostel's OSC 133 command-lifecycle hooks (plus a
+;; deferred relabel at spawn via `ghostel-mode-hook'); no polling by default.
+;; See patches/ghostel-process-name.md.
+
+(defcustom my/ghostel-name-read-delay 0.1
+  "Seconds to wait after an OSC 133 command-start marker before reading the
+foreground process.  The marker fires in the shell's preexec hook, before the
+child process exists."
+  :type 'number
+  :group 'ghostel)
+
+(defcustom my/ghostel-name-fallback-poll-interval nil
+  "Optional fallback polling interval in seconds for shells without OSC 133
+integration (plain sh, remote TRAMP without tramp shell integration).
+nil (default) disables the poll; the OSC 133 hooks cover bash/zsh/fish/nu.
+Changing this variable only takes effect after reloading ghostfire.el."
+  :type '(choice (const :tag "Off" nil) number)
+  :group 'ghostel)
+
+(defconst my/ghostel-name-sep (concat " " (char-to-string #xE0B9) " ")
+  "Separator between the index and the label in managed ghostel buffer names.
+Byte-identical to the legacy \"<index><sep><PID>\" naming scheme (space +
+U+E0B9 + space), so prefix scans and live terminals stay consistent.")
+
+(require 'rx)
+
+(defun my/ghostel--name (index label)
+  "Return the managed ghostel buffer name for INDEX and LABEL."
+  (format "%d%s%s" index my/ghostel-name-sep label))
+
+(defun my/ghostel--managed-name-p (name)
+  "Return non-nil when NAME belongs to a managed ghostel buffer (index prefix)."
+  (string-match-p (rx bos (+ digit) (literal my/ghostel-name-sep)) name))
+
+(defun my/ghostel--buffer-index (buffer)
+  "Return the numeric index parsed from the managed name of BUFFER."
+  (string-to-number (buffer-name buffer)))
+
+(defun my/ghostel--anchor-pid (buffer)
+  "Return the anchor process PID for ghostel BUFFER (its terminal child)."
+  (and (buffer-live-p buffer)
+       (buffer-local-value 'ghostel--pid buffer)))
+
+(defun my/ghostel--read-comm (pid)
+  "Return the comm of PID read from /proc, or nil when unavailable."
+  (let ((file (format "/proc/%s/comm" pid)))
+    (when (and (numberp pid) (> pid 0) (file-readable-p file))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (string-trim (buffer-string))))))
+
+(defun my/ghostel--tpgid (pid)
+  "Return the foreground process-group id of PID's controlling terminal.
+Reads field 8 of /proc/PID/stat.  The comm field (in parens) may itself
+contain spaces and parens, so everything through the LAST ')' is discarded
+before tokenizing."
+  (let ((file (format "/proc/%s/stat" pid)))
+    (when (and (numberp pid) (> pid 0) (file-readable-p file))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (let* ((text (buffer-string))
+               ;; Position just past the last ')' (end of the comm field).
+               (pos (and text (let ((p 0) (end nil))
+                                (while (string-match ")" text p)
+                                  (setq end (match-end 0)
+                                        p (match-end 0)))
+                                end)))
+               (tail (and pos (substring text pos)))
+               (tpgid (and tail (nth 5 (split-string tail)))))
+          (and tpgid (string-to-number tpgid)))))))
+
+(defun my/ghostel--fg-name (&optional buffer)
+  "Return the name of the process running in the foreground of BUFFER.
+BUFFER defaults to the current buffer.  Chain: the foreground group
+leader's comm -> the terminal child's own comm (the shell at rest) -> nil.
+A leading '-' (login-shell comm) is stripped."
+  (let* ((buf (or buffer (current-buffer)))
+         (anchor (my/ghostel--anchor-pid buf))
+         (fg (and anchor (my/ghostel--tpgid anchor)))
+         (name (or (and fg (my/ghostel--read-comm fg))
+                   (my/ghostel--read-comm anchor))))
+    (when name
+      (string-trim-left name "-"))))
+
+(defun my/ghostel--apply-name (buffer name)
+  "Rename managed BUFFER to \"INDEX<sep>NAME\" when the label differs."
+  (when (and buffer (buffer-live-p buffer)
+             (my/ghostel--managed-name-p (buffer-name buffer)))
+    (let ((want (my/ghostel--name (my/ghostel--buffer-index buffer) name)))
+      (unless (equal want (buffer-name buffer))
+        (rename-buffer want t)))))
+
+(defun my/ghostel--refresh-name (buffer)
+  "Refresh BUFFER's label from its current foreground process."
+  (when (and buffer (buffer-live-p buffer)
+             (my/ghostel--managed-name-p (buffer-name buffer)))
+    (when-let ((name (my/ghostel--fg-name buffer)))
+      (my/ghostel--apply-name buffer name))))
+
+(defun my/ghostel-rename-all ()
+  "Refresh the process-name label of every managed ghostel buffer."
+  (interactive)
+  (dolist (buf (my/ghostel-buffer-list))
+    (my/ghostel--refresh-name buf)))
+
+;; ── Hooks ──────────────────────────────────────────────────────────────
+
+(defun my/ghostel--on-mode-activate ()
+  "Relabel a freshly created ghostel buffer once its spawn rename has run.
+The mode hook fires during `(ghostel t)', before the spawn functions rename
+the buffer to \"<index><sep><PID>\"; deferring lets that rename land first."
+  (let ((buffer (current-buffer)))
+    (run-at-time 0 nil (lambda () (my/ghostel--refresh-name buffer)))))
+
+(defun my/ghostel--on-command-start (buffer)
+  "Refresh BUFFER's label shortly after an OSC 133 command-start marker.
+The marker fires before the child is forked, so the read is deferred by
+`my/ghostel-name-read-delay'."
+  (run-at-time my/ghostel-name-read-delay nil
+               (lambda () (my/ghostel--refresh-name buffer))))
+
+(defun my/ghostel--on-command-finish (buffer _exit-status)
+  "Refresh BUFFER's label after an OSC 133 command-finish marker.
+The foreground process is (again) the shell at this point."
+  (run-at-time 0 nil
+               (lambda () (my/ghostel--refresh-name buffer))))
+
+;; The hook variables live in ghostel-shell.el, which ghostel.el requires
+;; eagerly — but the package itself is deferred, so attach on load.
+(with-eval-after-load 'ghostel
+  (add-hook 'ghostel-mode-hook #'my/ghostel--on-mode-activate)
+  (add-hook 'ghostel-command-start-functions  #'my/ghostel--on-command-start)
+  (add-hook 'ghostel-command-finish-functions #'my/ghostel--on-command-finish))
+
+;; ── Optional fallback poll (default off) ───────────────────────────────
+;; Timer started once at load from the defcustom value; changing
+;; `my/ghostel-name-fallback-poll-interval' requires a reload.
+
+(defun my/ghostel--fallback-poll ()
+  "Refresh visible managed ghostel buffers; body of the fallback poll timer."
+  (when my/ghostel-name-fallback-poll-interval
+    (dolist (buf (my/ghostel-buffer-list))
+      (when (and (my/ghostel--managed-name-p (buffer-name buf))
+                 (get-buffer-window buf 'visible))
+        (my/ghostel--refresh-name buf)))))
+
+(when my/ghostel-name-fallback-poll-interval
+  (run-with-timer my/ghostel-name-fallback-poll-interval
+                  my/ghostel-name-fallback-poll-interval
+                  #'my/ghostel--fallback-poll))
+
 (provide 'ghostfire)
 ;; ghostfire.el ends here
