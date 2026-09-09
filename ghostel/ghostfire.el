@@ -121,6 +121,11 @@ Scans all buffer names for \"<N><sep>\" prefixes."
       (setq i (1+ i)))
     i))
 
+(defconst my/ghostel-name-syncing-label "syncing..."
+  "Placeholder label for a managed ghostel buffer whose process name is not
+known yet.  The PID is never shown in buffer names; this placeholder is
+swapped for the real process name as soon as it becomes readable.")
+
 (defun my/ghostel-new (&optional dir)
   "Spawn a new ghostel terminal at the lowest available index.
 Buffer is named \"<index><sep><label>\" where the label is the process
@@ -143,17 +148,18 @@ If DIR is nil or does not exist, `default-directory' is used silently."
                         (t nil)))))
                (t default-directory))))
     ;; Let ghostel create and display the terminal using its own default
-    ;; buffer naming.  We rename after the process is live — never bind
+    ;; buffer naming.  We rename immediately after — never bind
     ;; ghostel-buffer-name dynamically (crashes the native module).
     (let ((default-directory cwd))
       (ghostel t))
-    ;; Rename to \"<index><sep><PID>\" first; the deferred ghostel-mode-hook
-    ;; relabel then swaps the PID for the live process name.
-    (when-let* ((proc (and (boundp 'ghostel--process)
-                           ghostel--process))
-                ((process-live-p proc))
-                (pid (and (boundp 'ghostel--pid) ghostel--pid)))
-      (rename-buffer (format "%d  %d" index pid)))
+    ;; Name the buffer "<index><sep>syncing..." right away - the PID is
+    ;; never shown.  The retrying relabel swaps the placeholder for the
+    ;; actual process name as soon as it becomes readable.
+    (rename-buffer (my/ghostel--name index my/ghostel-name-syncing-label) t)
+    ;; Then relabel "<index><sep>syncing..." to "<index><sep><process>";
+    ;; retried so the very first spawn (fresh daemon, native module cold
+    ;; start) works.
+    (my/ghostel--schedule-relabel (current-buffer))
     ;; Force a resize to correct the initial terminal width for the
     ;; statuscolumn's line-prefix (ghostel--init-buffer uses
     ;; window-max-chars-per-line which doesn't account for it).
@@ -256,11 +262,9 @@ with no argument (uses `default-directory')."
   "Create a new ghostel buffer with the given INDEX and return it.
 Used by consult-buffer.el to spawn terminals from numeric input."
   (ghostel t)
-  (when-let* ((proc (and (boundp 'ghostel--process)
-                         ghostel--process))
-              ((process-live-p proc))
-              (pid (and (boundp 'ghostel--pid) ghostel--pid)))
-    (rename-buffer (format "%d  %d" index pid)))
+  (rename-buffer (my/ghostel--name index my/ghostel-name-syncing-label) t)
+  ;; Relabel the fresh terminal (see `my/ghostel--schedule-relabel').
+  (my/ghostel--schedule-relabel (current-buffer))
   (current-buffer))
 
 ;; ════════════════════════════════════════════════════════════════════════════
@@ -645,6 +649,7 @@ Changing this variable only takes effect after reloading ghostfire.el."
 Byte-identical to the legacy \"<index><sep><PID>\" naming scheme (space +
 U+E0B9 + space), so prefix scans and live terminals stay consistent.")
 
+
 (require 'rx)
 
 (defun my/ghostel--name (index label)
@@ -714,11 +719,14 @@ A leading '-' (login-shell comm) is stripped."
         (rename-buffer want t)))))
 
 (defun my/ghostel--refresh-name (buffer)
-  "Refresh BUFFER's label from its current foreground process."
+  "Refresh BUFFER's label from its current foreground process.
+Return the label read (even when it did not change), or nil when no
+process name could be read yet."
   (when (and buffer (buffer-live-p buffer)
              (my/ghostel--managed-name-p (buffer-name buffer)))
     (when-let ((name (my/ghostel--fg-name buffer)))
-      (my/ghostel--apply-name buffer name))))
+      (my/ghostel--apply-name buffer name)
+      name)))
 
 (defun my/ghostel-rename-all ()
   "Refresh the process-name label of every managed ghostel buffer."
@@ -728,12 +736,29 @@ A leading '-' (login-shell comm) is stripped."
 
 ;; ── Hooks ──────────────────────────────────────────────────────────────
 
+(defun my/ghostel--schedule-relabel (buffer &optional delay attempts)
+  "Relabel managed BUFFER, retrying until a process name is readable.
+The mode hook fires during buffer creation — before the spawn functions
+rename the buffer to \"<index><sep><PID>\" — and the very first spawn of a
+fresh daemon races the native spawn / module cold start, so a failed
+attempt re-arms with backoff.  Stops after ATTEMPTS total tries (default
+10) or as soon as a label is read."
+  (let ((delay (or delay 0.05))
+        (attempts (or attempts 10)))
+    (run-at-time delay nil
+                 (lambda ()
+                   (when (buffer-live-p buffer)
+                     (unless (my/ghostel--refresh-name buffer)
+                       (when (> attempts 1)
+                         (my/ghostel--schedule-relabel
+                          buffer (+ delay 0.1) (1- attempts)))))))))
+
 (defun my/ghostel--on-mode-activate ()
-  "Relabel a freshly created ghostel buffer once its spawn rename has run.
-The mode hook fires during `(ghostel t)', before the spawn functions rename
-the buffer to \"<index><sep><PID>\"; deferring lets that rename land first."
-  (let ((buffer (current-buffer)))
-    (run-at-time 0 nil (lambda () (my/ghostel--refresh-name buffer)))))
+  "Relabel a freshly created ghostel buffer once it is managed.
+The mode hook fires during buffer creation, before the spawn functions
+rename the buffer to \"<index><sep><PID>\"; the retrying relabel lets that
+rename land first and covers the async first-spawn race."
+  (my/ghostel--schedule-relabel (current-buffer)))
 
 (defun my/ghostel--on-command-start (buffer)
   "Refresh BUFFER's label shortly after an OSC 133 command-start marker.

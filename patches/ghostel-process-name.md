@@ -6,10 +6,10 @@ concerns). Two rename sites + new helper section.
 buffer name verbatim), `jumpring.el` (stores non-file jump targets *by buffer name* — see R4),
 `broot/broot.el` (own `"broot"` naming + reads buffer-local `ghostel--pid` — see D5), keybinds
 (prefix scan in `my/ghostel-next-available`).
-**Status:** PLANNED — design decisions complete (D-series + Q&A below), ready to implement.
-Decisions taken: D1, D2, D3, D4 (revised after Phase 0 recon — event-driven), D5, D6, D7,
-Q1–Q8.
-**Date:** 2026-07 (draft — nothing applied; user commits manually).
+**Status:** IMPLEMENTED in `ghostel/ghostfire.el` (byte-compiles clean) — see "Implementation
+notes" below. Decisions taken: D1, D2, D3, D4 (revised after Phase 0 recon — event-driven), D5,
+D6, D7, Q1–Q8.
+**Date:** 2026-07 (implemented; not yet committed — user commits manually).
 
 ## Objective
 
@@ -333,6 +333,72 @@ Notes:
 10. Emacs daemon + emacsclient: labels still track in client frames.
 11. Login shell shows `bash` not `-bash` (D7).
 12. `*Messages*` clean — no errors from hook handlers during fast command sequences.
+
+## Implementation notes (2026-07 — applied to ghostel/ghostfire.el)
+
+- New tail section "Live process-name buffer labels": `my/ghostel-name-read-delay` (0.1 s, Q1),
+  `my/ghostel-name-fallback-poll-interval` (nil, Q2/Q6), the `/proc` readers, the rename helpers,
+  `my/ghostel-rename-all`, the OSC 133 C/D hook handlers, and the optional poll + timer.
+- `my/ghostel-name-sep` is built as `" " + (char-to-string #xE0B9) + " "` — byte-identical to the
+  legacy `"%d  %d"` literal (verified via hexdump: `20 ee 82 b9 20`) while keeping the source
+  ASCII (the private-use glyph cannot round-trip through text edits reliably). The three legacy
+  glyph-bearing lines were therefore left untouched.
+- The spawn functions (`my/ghostel-new`, `my/ghostel-spawn-at-index`) immediately name the fresh
+  buffer `"<index><sep>syncing..."` — **the PID is never written to a buffer name** (see fix log
+  below). The relabel machinery then swaps the placeholder for the real process name, and the OSC
+  133 command-lifecycle hooks keep it current afterwards.
+- OSC hooks (`ghostel-command-start-functions` / `-finish-functions`) and `ghostel-mode-hook` are
+  attached inside `with-eval-after-load 'ghostel` (the package is deferred; the hook variables live
+  in `ghostel-shell.el`, which ghostel.el requires eagerly).
+
+### Fix log — first-spawn race (found in testing)
+
+Symptom: the FIRST terminal of a fresh daemon (spawned by `launch-firemacs`:
+`emacsclient -nw --eval "(my/ghostel-new)"`, shared.nix) kept the transient `"1 <PID>"` name until
+a later event (e.g. spawning the second tab) relabeled it.
+
+Cause: the original spawn relabel was a single 0 s `run-at-time` fired from `ghostel-mode-hook`.
+On the first-ever spawn the native child / module is still cold-starting, so the `/proc` reads
+returned nothing at that instant and the relabel gave up permanently — nothing re-triggered until
+the shell's first OSC 133 event.
+
+Fix:
+- `my/ghostel--refresh-name` now returns the label (or nil), so callers can distinguish
+  "relabeled / already correct" from "not readable yet".
+- New `my/ghostel--schedule-relabel` retries with backoff (first try at 0.05 s, +0.1 s per retry,
+  up to 10 tries, ~1.4 s total) and stops as soon as a label is read.
+- `my/ghostel--on-mode-activate` (ghostel-mode-hook) uses the retrying scheduler — covers every
+  terminal-creation path — and `my/ghostel-new` additionally schedules a relabel explicitly right
+  after its own rename, so the `launch-firemacs` first tab is relabeled deterministically.
+
+Regression checks passed: byte-compile clean; broot buffers still untouched (index-prefix filter);
+label flips to the shell name shortly after spawn and tracks foreground jobs thereafter.
+
+### Fix log — PID labels removed entirely ("syncing..." placeholder)
+
+Symptom/request: no PID may ever be visible in a ghostel buffer name — not even for a split
+second. A freshly spawned terminal should show only `"<index><sep>syncing..."` or the actual
+process name.
+
+Decision (D8): remove the PID from both spawning functions completely.
+
+Implementation:
+- New constant `my/ghostel-name-syncing-label` = `"syncing..."` (defined above the spawn
+  functions so the byte-compiler sees it before first use).
+- `my/ghostel-new` (ghostfire.el) — after `(ghostel t)` it renames unconditionally to
+  `(my/ghostel--name index my/ghostel-name-syncing-label)` (uniquify `t`); the old process-live
+  `when-let*` gate and the `(format "%d<sep>%d" index pid)` rename are gone. The retrying
+  `my/ghostel--schedule-relabel` then swaps the placeholder for the real name.
+- `my/ghostel-spawn-at-index` (consult-buffer numeric-spawn path) — identical treatment, plus an
+  explicit `my/ghostel--schedule-relabel` call for parity with `my/ghostel-new` (previously it
+  relied only on the mode hook).
+- The two legacy glyph-bearing PID renames were replaced byte-exactly via a Python pass
+  (`chr(0xE0B9)`) — the PUA glyph cannot be matched through ordinary text edits.
+
+Behavior: users see `1 syncing...` → `1 bash` (or the running job's name); on systems where the
+name can never be read (macOS / remote TRAMP), the tab stays at `1 syncing...`. Broot is
+unaffected (never PID-named; excluded by the index-prefix filter). Byte-compile clean; remaining
+warnings are pre-existing references to external package internals.
 
 ## Q&A — resolved decisions (all answered 2026-07)
 
