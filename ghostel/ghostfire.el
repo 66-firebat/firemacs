@@ -53,9 +53,18 @@ BUF defaults to the current buffer.  Returns nil if BUF is not in
 ;; ════════════════════════════════════════════════════════════════════════════
 
 (use-package ghostel
-  :ensure t
+  ;; Upstream branch fixing broot/ranger kitty-graphics previews (ghostel#675):
+  ;; the native PTY now reports cell pixel geometry in TIOCSWINSZ.
+  ;; Installed via package-vc (not MELPA); pinned to the branch tip commit.
+  :vc (:url "https://github.com/dakra/ghostel"
+       :lisp-dir "lisp"
+       :rev "c872539c20a05c3cfb322211728f25ef0a9f6fec")
   :defer t
   :custom
+  ;; The v0.53.0 release module also reports "0.53.0" but predates the fix,
+  ;; so a download would silently install the unfixed binary.  Compile the
+  ;; pinned branch source instead (zig is provided by the Nix config).
+  (ghostel-module-auto-install 'compile)
   (ghostel-shell-integration t)        ;; auto-inject shell integration (OSC 7, OSC 133)
   (ghostel-scrollback-size nil)        ;; unlimited scrollback (like eat)
   (ghostel-initial-input-mode 'semi-char)) ;; same default input mode as eat
