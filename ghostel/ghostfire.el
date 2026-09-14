@@ -53,17 +53,20 @@ BUF defaults to the current buffer.  Returns nil if BUF is not in
 ;; ════════════════════════════════════════════════════════════════════════════
 
 (use-package ghostel
-  ;; Upstream branch fixing broot/ranger kitty-graphics previews (ghostel#675):
-  ;; the native PTY now reports cell pixel geometry in TIOCSWINSZ.
-  ;; Installed via package-vc (not MELPA); pinned to the branch tip commit.
+  ;; Broot/ranger kitty-graphics previews need both upstream fixes now on main:
+  ;;   (1) the native PTY reports cell pixel geometry in TIOCSWINSZ (ghostel#675);
+  ;;   (2) the file/temp-file image mediums are enabled by default (they are
+  ;;       off in the v0.53.0 release, so broot's previews arrive via a medium
+  ;;       ghostel otherwise rejects).
+  ;; Installed via package-vc (not MELPA); pinned to the main tip commit.
   :vc (:url "https://github.com/dakra/ghostel"
        :lisp-dir "lisp"
-       :rev "c872539c20a05c3cfb322211728f25ef0a9f6fec")
+       :rev "7531ba4d1f854923dce3eedd024d3f28fbca5931")
   :defer t
   :custom
   ;; The v0.53.0 release module also reports "0.53.0" but predates the fix,
   ;; so a download would silently install the unfixed binary.  Compile the
-  ;; pinned branch source instead (zig is provided by the Nix config).
+  ;; pinned source instead (zig is provided by the Nix config).
   (ghostel-module-auto-install 'compile)
   (ghostel-shell-integration t)        ;; auto-inject shell integration (OSC 7, OSC 133)
   (ghostel-scrollback-size nil)        ;; unlimited scrollback (like eat)
