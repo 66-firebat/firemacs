@@ -235,6 +235,10 @@ Firebat custom theme. Full dark palette with 7-stop gradient from #ff4400 (accen
 
 Terminal cursor changes per Evil state via OSC 12 (color) and DECSCUSR (shape) escape sequences. Normal mode: default. Insert mode: #ff4400 bar. Visual mode: #ff4400 underline.
 
+### evil-config.el
+
+Evil-mode add-ons kept out of init.el. Currently configures evil-surround: enables `global-evil-surround-mode` so `ys`/`cs`/`ds` work in every buffer, and remaps `Y` in visual state to `my/evil-surround-region-inline`, a variant of `evil-surround-region` that keeps the delimiters inline instead of putting them on their own lines for linewise (`V`) regions. Loaded with `:demand t` because use-package treats `:bind` as a deferred-loading keyword — without it the package would not load (and the global mode would not turn on) until the first `Y` press.
+
 ### panes.el
 
 Window divider glyphs. Replaces vertical border | with + in terminal mode. Sets continuation glyph to center-dot in dim face.
