@@ -11,9 +11,10 @@
 ;;      - `global-evil-surround-mode' enables the operators everywhere.
 ;;      - `Y' in visual state runs `my/evil-surround-region-inline', an
 ;;        `evil-surround-region' that never puts the delimiters on their own
-;;        lines.  Stock `evil-surround-region' (and the visual `S' binding)
-;;        keeps surround.vim's linewise behaviour: on a linewise region (`V')
-;;        or a multi-line motion it wraps like
+;;        lines.
+;;      - `C-y' in visual state keeps stock `evil-surround-region', i.e.
+;;        surround.vim's linewise behaviour: on a linewise region (`V') or a
+;;        multi-line motion it wraps like
 ;;
 ;;            '
 ;;            ;; Welcome to Emacs + Evil
@@ -65,7 +66,8 @@ passed straight through to `evil-surround-region'."
   :ensure t
   :demand t
   :bind (:map evil-visual-state-map
-              ("Y" . my/evil-surround-region-inline))
+              ("Y" . my/evil-surround-region-inline)
+              ("C-y" . evil-surround-region))
   :config
   (global-evil-surround-mode 1))
 
