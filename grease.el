@@ -62,7 +62,7 @@ the resolved target."
   :group 'grease)
 
 (defface grease-symlink-broken
-  '((t :foreground "#ef4444" :background nil))
+  '((t :foreground "#ef4444" :background unspecified))
   "Face for the resolved target of a broken symlink.
 Used when the symlink target does not exist on the filesystem."
   :group 'grease)

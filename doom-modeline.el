@@ -29,9 +29,9 @@
 
   ;; Evil state faces — custom colors
   (custom-set-faces
-    '(doom-modeline-evil-normal-state ((t (:foreground "#ff4400" :background nil))))
-    '(doom-modeline-evil-insert-state ((t (:foreground "#838383" :background nil))))
-    '(doom-modeline-evil-visual-state  ((t (:foreground "#1bfd9c" :background nil)))))
+    '(doom-modeline-evil-normal-state ((t (:foreground "#ff4400" :background unspecified))))
+    '(doom-modeline-evil-insert-state ((t (:foreground "#838383" :background unspecified))))
+    '(doom-modeline-evil-visual-state  ((t (:foreground "#1bfd9c" :background unspecified)))))
 
   ;; Helper: git diff stats string
   (defun my/gitsigns-str ()
