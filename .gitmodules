@@ -1,3 +1,0 @@
-[submodule "grease"]
-	path = grease
-	url = https://github.com/mwac-dev/grease.el.git
