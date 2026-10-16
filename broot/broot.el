@@ -43,6 +43,13 @@
 ;;  Directories keep their default broot behavior (navigate).  Future work can
 ;;  add verbs that hand paths back to Emacs for Dired/Grease etc.
 ;;
+;;  Input / ESC routing
+;;  -------------------
+;;  A session runs in Evil insert state, so typing goes straight to broot.
+;;  ESC is forced buffer-locally to the terminal (not Evil's normal state),
+;;  because broot uses ESC itself to leave its search/input mode for command
+;;  mode.  See the ESC-routing section below.
+;;
 ;;  Dependencies
 ;;  ------------
 ;;  - ghostel (declared and loaded via ghostel/ghostfire.el)
@@ -64,6 +71,10 @@
 (defvar ghostfire-consult-map nil
   "Keymap used in the ghostfire zoxide travel minibuffer (defined in ghostfire.el).")
 
+;; Defined by evil-ghostel (loaded on demand from `ghostel-mode-hook'); the
+;; declaration only silences the byte-compiler.  See the ESC-routing section.
+(defvar evil-ghostel--escape-mode)
+
 (defvar my/broot-buffer-prefix "broot"
   "Buffer-name prefix used for new broot session buffers.
 `generate-new-buffer' uniquifies (\"broot\", \"broot<2>\", ...), which is
@@ -82,6 +93,33 @@ process is spawned (`ghostel-exec'); ghostel refuses major-mode changes
 once a terminal process is live."
   ;; Broot-specific buffer setup can be added here as the feature grows.
   )
+
+;; ── ESC routing: broot owns ESC, not Evil ────────────────────────
+;; Broot is itself modal: `s' starts a search (broot input mode) and ESC
+;; returns to broot's command mode.  A broot session runs in Evil insert
+;; state (broot-mode inherits ghostel-mode's `insert' initial state), so
+;; keys reach broot through the terminal, but ESC is intercepted by
+;; evil-ghostel's insert-state binding.  Its default routing (`auto') only
+;; forwards ESC to the terminal when ghostel reports the alternate screen;
+;; broot does not trip that heuristic, so ESC would switch the *Emacs*
+;; buffer to Evil normal state and never reach broot.
+;;
+;; Force the buffer-local routing to `terminal' in every broot session, so
+;; ESC always belongs to broot and the buffer stays in insert state.  This
+;; runs from `broot-mode-hook', which runs after `ghostel-mode-hook' (where
+;; `evil-ghostel-mode' sets the routing from `evil-ghostel-escape'), so the
+;; override is not clobbered.  `C-c <escape>' still switches to Evil normal
+;; state once — e.g. to reach global `S' (`my/consult-ripgrep-with-jump') —
+;; without changing the routing; `C-c C-r' cycles the routing.
+
+(defun my/broot--route-escape-to-terminal ()
+  "Route insert-state ESC to the broot process instead of Evil.
+Added to `broot-mode-hook' so it runs after `evil-ghostel-mode' has set the
+buffer-local routing from `evil-ghostel-escape'."
+  (when (bound-and-true-p evil-ghostel-mode)
+    (setq-local evil-ghostel--escape-mode 'terminal)))
+
+(add-hook 'broot-mode-hook #'my/broot--route-escape-to-terminal)
 
 ;; ── Spawn ────────────────────────────────────────────────────────
 
