@@ -5,7 +5,7 @@
 ;;
 ;;  Features:
 ;;    - Indexed terminal spawning ("N   PID")
-;;    - Mode-aware M-t dispatcher (grease → root dir, kill grease after)
+;;    - Mode-aware M-t dispatcher (broot → cd existing terminal, close broot)
 ;;    - Zoxide directory travel via consult + embark (formerly "eaterz")
 ;;    - Compose buffer (full Emacs editing → send to terminal)
 ;;    - Semi-char non-bound keys
@@ -17,11 +17,12 @@
 
 (require 'cl-lib)
 
-;; Cross-module function referenced at run time by `my/ghostel-new-from-broot'
+;; Cross-module function referenced at run time by `my/ghostel-cd-from-broot'
 ;; (broot.el loads after this file in init.el; the handler guards with
 ;; `fboundp').  The declaration silences the byte-compiler and documents the
 ;; dependency.
 (declare-function my/broot-sync-default-directory "broot/broot.el" (&optional buffer))
+(declare-function ghostel-send-string "ghostel.el" (string))
 
 ;; ════════════════════════════════════════════════════════════════════════════
 ;; ── Working directory helper ───────────────────────────────────────────────
@@ -188,38 +189,79 @@ If DIR is nil or does not exist, `default-directory' is used silently."
     (current-buffer)))
 
 ;; ════════════════════════════════════════════════════════════════════════════
-;; ── Dispatch — Mode-aware terminal spawning ─────────────────────────────────
+;; ── Dispatch — Mode-aware terminal handling ─────────────────────────────────
 ;; ════════════════════════════════════════════════════════════════════════════
 ;; When M-t is pressed, the dispatcher checks the current buffer's mode
 ;; against `my/ghostel-new-dispatch-alist' and calls the associated handler.
-;; If no match, falls through to `my/ghostel-new'.
+;; Most contexts spawn a new terminal; the broot handler instead reuses the
+;; most recently used one and closes the broot session.
 
 (defvar my/ghostel-new-dispatch-alist
-  '((broot-mode . my/ghostel-new-from-broot))
-  "Alist mapping major-mode symbols to ghostel-spawn handler functions.
-Each handler is called with no arguments and should call `my/ghostel-new'
-with an appropriate directory (or no argument for `default-directory').
+  '((broot-mode . my/ghostel-cd-from-broot))
+  "Alist mapping major-mode symbols to M-t handler functions.
+Each handler is called with no arguments and decides how to put the user
+into a terminal: usually by calling `my/ghostel-new', but the broot handler
+instead cds the most recently used terminal and closes the broot session.
 The dispatcher uses `derived-mode-p', so entries match any mode derived
 from the key symbol.")
 
-(defun my/ghostel-new-from-broot ()
-  "Spawn ghostel rooted at the directory broot is currently showing.
-Reads broot's live working directory via `my/broot-sync-default-directory'
-(the same on-demand, procfs-based sync used by
-`my/consult-ripgrep-with-jump'), so the new terminal starts where broot is
-rooted at the moment M-t is pressed.
+(defun my/ghostel--mru-terminal-buffer ()
+  "Return the most recently used live plain Ghostel terminal buffer.
+Candidates are taken in `buffer-list' order, which Emacs keeps sorted by
+most recent selection.  Broot sessions are excluded because `broot-mode'
+derives from `ghostel-mode'.  Buffers whose terminal process is no longer
+live are skipped.  Returns nil when no plain terminal is open."
+  (seq-find (lambda (buf)
+              (with-current-buffer buf
+                (and (derived-mode-p 'ghostel-mode)
+                     (not (derived-mode-p 'broot-mode))
+                     (bound-and-true-p ghostel--process)
+                     (process-live-p ghostel--process))))
+            (buffer-list)))
 
-If broot.el isn't loaded or the broot process directory can't be read,
-warns and falls through to `my/ghostel-new' in `default-directory'."
-  (if (fboundp 'my/broot-sync-default-directory)
-      (my/ghostel-new (or (my/broot-sync-default-directory)
-                          default-directory))
-    (display-warning
-     'ghostel
-     (concat "broot-mode detected but broot.el is not loaded; "
-             "spawning in default-directory")
-     :warning)
-    (my/ghostel-new)))
+(defun my/ghostel-cd-from-broot ()
+  "Send a cd to the most recently used terminal, then close the broot session.
+M-t handler for `broot-mode'.  Reads broot's live working directory via
+`my/broot-sync-default-directory' (the same on-demand, procfs-based sync
+used by `my/consult-ripgrep-with-jump') and sends \"cd <dir> && clear\" to
+the most recently used plain Ghostel terminal, reusing it instead of
+spawning a new buffer on every jump out of broot.  Then switches to that
+terminal and kills the broot buffer.
+
+When no plain terminal is open, falls back to spawning one rooted at
+broot's current directory (`my/ghostel-new'), so the broot session is
+always closed.
+
+If broot.el isn't loaded or broot's directory can't be read, warns and
+uses `default-directory'."
+  (interactive)
+  (let* ((broot-buf (current-buffer))
+         (dir (cond
+               ((not (fboundp 'my/broot-sync-default-directory))
+                (display-warning
+                 'ghostel
+                 (concat "broot-mode detected but broot.el is not loaded; "
+                         "using default-directory")
+                 :warning)
+                default-directory)
+               (t (or (my/broot-sync-default-directory)
+                      default-directory))))
+         (target (my/ghostel--mru-terminal-buffer)))
+    (cond
+     (target
+      (with-current-buffer target
+        (ghostel-send-string
+         (format "cd %s && clear\n" (shell-quote-argument dir))))
+      (switch-to-buffer target)
+      (when (buffer-live-p broot-buf)
+        (kill-buffer broot-buf))
+      (message "cd: %s" dir))
+     (t
+      ;; No plain terminal to reuse — spawn one at broot's directory.
+      (my/ghostel-new dir)
+      (when (buffer-live-p broot-buf)
+        (kill-buffer broot-buf))
+      (message "ghostel: %s" dir)))))
 
 (defcustom my/ghostel-kill-grease-on-spawn t
   "When non-nil, kill the grease buffer after spawning a ghostel terminal from it.
@@ -253,11 +295,12 @@ buffer after spawning to prevent clutter."
     (my/ghostel-new)))
 
 (defun my/ghostel-new-dispatch ()
-  "Spawn a new ghostel terminal, mode-aware.
+  "Open or reuse a ghostel terminal, mode-aware.
 When the current buffer uses a mode listed in `my/ghostel-new-dispatch-alist',
-calls the associated handler.  Otherwise falls through to `my/ghostel-new'
-rooted at `my/ghostel-working-dir' (a terminal's live OSC 7 cwd when
-available, else `default-directory')."
+calls the associated handler: broot sessions cd the most recently used
+terminal and close the broot buffer; every other context spawns a new
+terminal rooted at `my/ghostel-working-dir' (a terminal's live OSC 7 cwd
+when available, else `default-directory')."
   (interactive)
   (if-let ((handler (cdr (cl-assoc major-mode my/ghostel-new-dispatch-alist
                                    :test (lambda (_mode key)

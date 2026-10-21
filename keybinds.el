@@ -411,6 +411,8 @@ If already in Dired: kill the Dired buffer."
     "q" 'pi-coding-agent-quit))
 
 ;; ── Global Master Keybinds ────────────────────────────────────────
+;; M-t spawns a numbered terminal; in a broot session it instead cds the
+;; most recently used terminal, switches to it, and closes the broot buffer.
 (general-def :keymaps 'override
   "M-t" 'my/ghostel-new-dispatch
   "M-r" 'consult-recent-file

@@ -17,6 +17,12 @@
 ;;      there.  When invoked from inside a broot session, that session is
 ;;      replaced (rerooted); other broot sessions are left untouched.
 ;;
+;;  `M-t' in a broot session (`my/ghostel-cd-from-broot', ghostfire.el):
+;;  sends `cd <broot's live cwd>' to the most recently used plain Ghostel
+;;  terminal, switches to it, and kills the broot buffer — no new buffer is
+;;  created.  With no plain terminal open it spawns one instead (still
+;;  closing the broot session).
+;;
 ;;  Session model
 ;;  -------------
 ;;  - Major mode: broot sessions run in `broot-mode', a major mode DERIVED
