@@ -21,6 +21,9 @@
 ;;      M-x dirvish-dwim    open in the current window instead of full-frame
 ;;      ?               `dirvish-dispatch' — transient cheatsheet (in a session)
 ;;
+;;  `dirvish-peek-mode' is also enabled globally: previews appear while
+;;  narrowing candidates in the minibuffer (works with Vertico/Consult).
+;;
 ;;  Inside a Dirvish buffer the keymap inherits `dired-mode-map', so all the
 ;;  Dired bindings from dired.el and evil-collection still apply; Dirvish only
 ;;  adds `q' (`dirvish-quit') to close the whole session.
@@ -30,6 +33,12 @@
 ;;  - GNU ls (coreutils) supporting long options — present on this system
 ;;  - fd — for the asynchronous large-directory listing path
 ;;  - nerd-icons — icon backend (already pulled in by doom-modeline.el)
+;;  - Preview helpers, installed system-wide by modules/packages.nix:
+;;      vips (`vipsthumbnail'), ffmpegthumbnailer, mediainfo, `7zz',
+;;      epub-thumbnailer, `pdftoppm'/`pdfinfo' (poppler-utils), `magick'
+;;  - Images (plus PDF/font/GIF thumbnails) only render in a graphical
+;;    frame; under `emacsclient -nw' Dirvish still previews text files and
+;;    directory listings.
 ;; =============================================================================
 
 (use-package dirvish
@@ -70,6 +79,12 @@
   ;; List very large directories asynchronously with `fd' instead of blocking
   ;; Emacs on a synchronous `ls' of tens of thousands of entries.
   (setq dirvish-large-directory-threshold 20000)
+
+  ;; Preview files in the minibuffer while narrowing completion candidates
+  ;; (works with Vertico/Consult).  Global minor mode: it adds a
+  ;; `minibuffer-setup-hook' that shows a preview for the selected candidate
+  ;; and tears the peek session down when the minibuffer exits.
+  (dirvish-peek-mode 1)
 
   ;; Quick-access bookmarks for `M-x dirvish-quick-access'.
   ;; The option (and its `:set' that builds the transient menu) lives in the
