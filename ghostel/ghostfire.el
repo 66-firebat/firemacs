@@ -205,6 +205,56 @@ instead cds the most recently used terminal and closes the broot session.
 The dispatcher uses `derived-mode-p', so entries match any mode derived
 from the key symbol.")
 
+(defun my/ghostel--mru-terminal-buffer ()
+  "Return the most recently used live plain Ghostel terminal buffer.
+`buffer-list' is ordered most-recently-used first.  Broot sessions are
+excluded (\"plain\" terminals only: `broot-mode' derives from
+`ghostel-mode'), and buffers whose terminal process is dead are skipped."
+  (seq-find (lambda (buf)
+              (with-current-buffer buf
+                (and (derived-mode-p 'ghostel-mode)
+                     (not (derived-mode-p 'broot-mode))
+                     (bound-and-true-p ghostel--process)
+                     (process-live-p ghostel--process))))
+            (buffer-list)))
+
+(defun my/ghostel-cd-from-broot ()
+  "Reuse a Ghostel terminal at broot's current directory, then close broot.
+Reads broot's live working directory via `my/broot-sync-default-directory'
+(the same on-demand, procfs-based sync used by
+`my/consult-ripgrep-with-jump'), sends `cd <dir> && clear' to the most
+recently used plain Ghostel terminal and switches to it.  If no such
+terminal exists, spawns one rooted at that directory with
+`my/ghostel-new'.
+
+Falls back to `default-directory' when broot's directory cannot be read
+(with a warning when broot.el isn't loaded at all).  The broot session
+buffer M-t was pressed in — and therefore its process — is killed
+afterwards, so repeated M-t presses do not accumulate broot buffers."
+  (interactive)
+  (let* ((broot-buf (current-buffer))
+         (dir (if (fboundp 'my/broot-sync-default-directory)
+                  (my/broot-sync-default-directory)
+                (display-warning
+                 'ghostel
+                 (concat "broot-mode detected but broot.el is not loaded; "
+                         "using default-directory")
+                 :warning)
+                nil))
+         (dir (or dir default-directory))
+         (target (my/ghostel--mru-terminal-buffer)))
+    (if target
+        (progn
+          (with-current-buffer target
+            (ghostel-send-string
+             (format "cd %s && clear\n" (shell-quote-argument dir))))
+          (switch-to-buffer target))
+      (my/ghostel-new dir))
+    ;; Kill the broot session after switching away, so the window ends up
+    ;; on the terminal.
+    (when (buffer-live-p broot-buf)
+      (kill-buffer broot-buf))))
+
 (defcustom my/ghostel-kill-broot-on-spawn t
   "When non-nil, kill the broot buffer after spawning a ghostel terminal from it.
 The new terminal inherits broot's current directory; disposing of the broot
