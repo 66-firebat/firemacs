@@ -202,6 +202,15 @@ with an appropriate directory (or no argument for `default-directory').
 The dispatcher uses `derived-mode-p', so entries match any mode derived
 from the key symbol.")
 
+(defcustom my/ghostel-kill-broot-on-spawn t
+  "When non-nil, kill the broot buffer after spawning a ghostel terminal from it.
+The new terminal inherits broot's current directory; disposing of the broot
+session afterwards keeps repeated M-t presses from accumulating idle broot
+buffers (and their processes).  If nil, the broot buffer is left alive
+(buried behind the new terminal)."
+  :type 'boolean
+  :group 'ghostel)
+
 (defun my/ghostel-new-from-broot ()
   "Spawn ghostel rooted at the directory broot is currently showing.
 Reads broot's live working directory via `my/broot-sync-default-directory'
@@ -210,16 +219,24 @@ Reads broot's live working directory via `my/broot-sync-default-directory'
 rooted at the moment M-t is pressed.
 
 If broot.el isn't loaded or the broot process directory can't be read,
-warns and falls through to `my/ghostel-new' in `default-directory'."
-  (if (fboundp 'my/broot-sync-default-directory)
-      (my/ghostel-new (or (my/broot-sync-default-directory)
-                          default-directory))
-    (display-warning
-     'ghostel
-     (concat "broot-mode detected but broot.el is not loaded; "
-             "spawning in default-directory")
-     :warning)
-    (my/ghostel-new)))
+warns and falls through to `my/ghostel-new' in `default-directory'.
+
+When `my/ghostel-kill-broot-on-spawn' is non-nil (the default), the broot
+session buffer — and therefore its broot process — is killed after the
+terminal spawns."
+  (let ((broot-buf (current-buffer)))
+    (if (fboundp 'my/broot-sync-default-directory)
+        (my/ghostel-new (or (my/broot-sync-default-directory)
+                            default-directory))
+      (display-warning
+       'ghostel
+       (concat "broot-mode detected but broot.el is not loaded; "
+               "spawning in default-directory")
+       :warning)
+      (my/ghostel-new))
+    (when (and my/ghostel-kill-broot-on-spawn
+               (buffer-live-p broot-buf))
+      (kill-buffer broot-buf))))
 
 (defcustom my/ghostel-kill-grease-on-spawn t
   "When non-nil, kill the grease buffer after spawning a ghostel terminal from it.

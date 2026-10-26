@@ -10,7 +10,13 @@ Decisions:
    "grease → root dir" header/section comments are left dormant (not
    deleted).
 3. Fallback when broot's dir is unavailable: **warn + `default-directory`**.
-4. The broot session is **kept alive** after spawning (source not killed).
+4. ~~The broot session is **kept alive** after spawning (source not killed).~~
+   **Revised (clutter follow-up):** the broot buffer (and its process) is
+   **killed after the terminal spawns**, controlled by the new defcustom
+   `my/ghostel-kill-broot-on-spawn` (default `t`).  Set it to nil to restore
+   the original keep-alive behavior.  This mirrors the old grease
+   kill-on-spawn flow and stops M-t presses from accumulating idle broot
+   buffers.
 
 ## Goal
 
