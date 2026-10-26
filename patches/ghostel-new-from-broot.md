@@ -1,6 +1,11 @@
 # PATCH — `my/ghostel-new-from-broot`: M-t spawns a terminal at broot's current directory
 
-Status: **implemented** (4/4 decisions answered; code applied in ghostfire.el).
+Status: **superseded** by `patches/ghostel-cd-from-broot.md`.
+
+M-t in a broot session no longer spawns a terminal: it now sends a `cd` to
+the most recently used plain Ghostel terminal, switches to it, and kills the
+broot buffer.  The design notes below describe the previous behavior and are
+kept for the dir-sync and fallback mechanics they document.
 
 Decisions:
 1. Handler lives in **ghostfire.el** (with an `fboundp` guard on broot's sync
