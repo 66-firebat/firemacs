@@ -753,6 +753,25 @@ Changing this variable only takes effect after reloading ghostfire.el."
   :type '(choice (const :tag "Off" nil) number)
   :group 'ghostel)
 
+(defcustom my/ghostel-name-chase-duration 3.0
+  "Maximum seconds to keep re-reading a buffer's label after a suspected
+foreground-process change.  The chase stops early once the label is stable
+across consecutive reads, so a quick command settles in well under this cap."
+  :type 'number
+  :group 'ghostel)
+
+(defcustom my/ghostel-name-chase-interval 0.25
+  "Seconds between re-reads during the bounded label chase.
+Lower values settle faster but read /proc more often; higher values cost less
+but take longer to observe a foreground change."
+  :type 'number
+  :group 'ghostel)
+
+(defconst my/ghostel-name-chase-stable-reads 2
+  "Consecutive unchanged reads required to end the chase early.
+Two reads means a single transient flip (pi -> bash -> pi) is observed and
+settles back, rather than the chase stopping on the mid-transition value.")
+
 (defconst my/ghostel-name-sep (concat " " (char-to-string #xE0B9) " ")
   "Separator between the index and the label in managed ghostel buffer names.
 Byte-identical to the legacy \"<index><sep><PID>\" naming scheme (space +
@@ -869,18 +888,50 @@ rename the buffer to \"<index><sep><PID>\"; the retrying relabel lets that
 rename land first and covers the async first-spawn race."
   (my/ghostel--schedule-relabel (current-buffer)))
 
+(defun my/ghostel--chase-name (buffer &optional start stable-count)
+  "Re-read BUFFER's foreground label until stable or the chase budget is spent.
+START is the float-time at which the chase began (defaults to now).
+STABLE-COUNT is the number of consecutive unchanged reads already observed.
+Stops early when the label is unchanged across
+`my/ghostel-name-chase-stable-reads' consecutive reads, or when
+`my/ghostel-name-chase-duration' has elapsed.  Each iteration re-reads
+`my/ghostel--refresh-name' and re-arms at `my/ghostel-name-chase-interval'.
+This is the poll-on-change safety net: a transient foreground flip (pi ->
+bash -> pi) is watched and settles back, then the chase stops entirely so no
+timer runs while the label is stable."
+  (let* ((start        (or start (float-time)))
+         (before       (buffer-name buffer))
+         (now          (float-time)))
+    (when (and (buffer-live-p buffer)
+               (< (- now start) my/ghostel-name-chase-duration))
+      (my/ghostel--refresh-name buffer)
+      (let ((after (buffer-name buffer)))
+        (if (equal before after)
+            (if (>= (1+ (or stable-count 0))
+                    my/ghostel-name-chase-stable-reads)
+                nil ; stable enough — stop polling
+              (run-at-time my/ghostel-name-chase-interval nil
+                           #'my/ghostel--chase-name
+                           buffer start (1+ (or stable-count 0))))
+          ;; Label changed — reset the stable counter and keep watching.
+          (run-at-time my/ghostel-name-chase-interval nil
+                       #'my/ghostel--chase-name buffer start 0))))))
+
 (defun my/ghostel--on-command-start (buffer)
-  "Refresh BUFFER's label shortly after an OSC 133 command-start marker.
-The marker fires before the child is forked, so the read is deferred by
-`my/ghostel-name-read-delay'."
+  "Arm the label chase after an OSC 133 command-start marker.
+The marker fires before the child is forked; the first read is still deferred
+by `my/ghostel-name-read-delay', after which the bounded chase keeps re-reading
+until the foreground label settles."
   (run-at-time my/ghostel-name-read-delay nil
-               (lambda () (my/ghostel--refresh-name buffer))))
+               (lambda () (my/ghostel--chase-name buffer))))
 
 (defun my/ghostel--on-command-finish (buffer _exit-status)
-  "Refresh BUFFER's label after an OSC 133 command-finish marker.
-The foreground process is (again) the shell at this point."
+  "Arm the label chase after an OSC 133 command-finish marker.
+The foreground process is (again) the shell here, but inside a full-screen TUI
+the marker may be delayed or the foreground may change again, so the chase
+re-reads until stable rather than trusting a single sample."
   (run-at-time 0 nil
-               (lambda () (my/ghostel--refresh-name buffer))))
+               (lambda () (my/ghostel--chase-name buffer))))
 
 ;; The hook variables live in ghostel-shell.el, which ghostel.el requires
 ;; eagerly — but the package itself is deferred, so attach on load.
