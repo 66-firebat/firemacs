@@ -156,11 +156,14 @@ the new `broot-mode' session buffer."
           (progn
             (with-current-buffer buf
               (setq default-directory dir)
-              ;; Record the spawning buffer so M-e can cd it back on close.
-              (setq my/broot-source-buffer source-buf)
               ;; Establish broot-mode (derived from ghostel-mode) BEFORE the
               ;; process spawn; ghostel blocks mode changes on live buffers.
-              (broot-mode))
+              (broot-mode)
+              ;; Record the spawning buffer so M-e can cd it back on close.
+              ;; AFTER `broot-mode': `define-derived-mode' runs
+              ;; `kill-all-local-variables' which would wipe a buffer-local
+              ;; set before the mode switch.
+              (setq my/broot-source-buffer source-buf))
             ;; Display in the current window first so ghostel sizes the
             ;; terminal against it (same order `ghostel--create' uses).
             (pop-to-buffer buf (append display-buffer--same-window-action
