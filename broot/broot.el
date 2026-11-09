@@ -65,6 +65,8 @@
 
 (declare-function ghostel-mode "ghostel.el" ())
 (declare-function ghostel-exec "ghostel.el" (buffer program &optional args))
+(declare-function ghostel-send-string "ghostel.el" (string))
+(declare-function ghostel--process "ghostel.el" ())
 (declare-function ghostfire--check-deps "ghostfire.el" ())
 (declare-function ghostfire-consult-builder "ghostfire.el" (input))
 (declare-function ghostfire-consult-format "ghostfire.el" (line))
@@ -85,6 +87,13 @@
   "Buffer-name prefix used for new broot session buffers.
 `generate-new-buffer' uniquifies (\"broot\", \"broot<2>\", ...), which is
 what allows several broot sessions to be open at once.")
+
+(defvar-local my/broot-source-buffer nil
+  "Buffer this broot session was spawned from.
+Set on the broot buffer by `my/broot--open'; it records the buffer that was
+current when M-e spawned the session.  When non-nil, closing the session via
+M-e cds that buffer (if it is a live plain Ghostel terminal) to broot's
+current directory before killing the session.")
 
 ;; ── Major mode ───────────────────────────────────────────────────
 
@@ -134,7 +143,8 @@ buffer-local routing from `evil-ghostel-escape'."
 Spawns broot as a Ghostel terminal process via `ghostel-exec' and returns
 the new `broot-mode' session buffer."
   (require 'ghostel nil t)            ; ghostel-exec is not autoloaded
-  (let* ((broot-exe (executable-find "broot"))
+  (let* ((source-buf (current-buffer))  ; the buffer M-e was pressed in
+         (broot-exe (executable-find "broot"))
          (dir (file-name-as-directory (expand-file-name dir))))
     (unless broot-exe
       (user-error
@@ -146,6 +156,8 @@ the new `broot-mode' session buffer."
           (progn
             (with-current-buffer buf
               (setq default-directory dir)
+              ;; Record the spawning buffer so M-e can cd it back on close.
+              (setq my/broot-source-buffer source-buf)
               ;; Establish broot-mode (derived from ghostel-mode) BEFORE the
               ;; process spawn; ghostel blocks mode changes on live buffers.
               (broot-mode))
@@ -258,11 +270,47 @@ Ghostel terminals to `ghostfire-travel' instead."
 
 ;; ── Command ──────────────────────────────────────────────────────
 
+(defun my/broot--cd-source-on-close (broot-buf)
+  "Close BROOT-BUF, ceding its directory to the buffer it was spawned from.
+
+If the spawning buffer (see `my/broot-source-buffer') is still a live plain
+Ghostel terminal, send the shell a `cd\n' to broot's live working directory
+(`my/broot-sync-default-directory') and switch to it, then kill BROOT-BUF.
+
+Otherwise (the source buffer was never a terminal, is gone, or is another
+broot session), just kill BROOT-BUF with no cd."
+  (let* ((dir (my/broot-sync-default-directory broot-buf))
+         (src (and (buffer-live-p broot-buf)
+                   (buffer-local-value 'my/broot-source-buffer broot-buf)))
+         (src-terminal
+          (and src
+               (buffer-live-p src)
+               (with-current-buffer src
+                 (and (derived-mode-p 'ghostel-mode)
+                      (not (derived-mode-p 'broot-mode))
+                      (bound-and-true-p ghostel--process)
+                      (process-live-p ghostel--process))))))
+    (if (and src-terminal dir)
+        (progn
+          (with-current-buffer src
+            (ghostel-send-string (format "cd %s && clear\n"
+                                         (shell-quote-argument dir))))
+          (switch-to-buffer src)
+          (when (buffer-live-p broot-buf)
+            (kill-buffer broot-buf))
+          (message "broot closed → cd %s" dir))
+      ;; No live terminal source (or broot dir unreadable): plain kill.
+      (when (buffer-live-p broot-buf)
+        (kill-buffer broot-buf))
+      (when src
+        (message "broot closed")))))
+
 (defun my/broot-default-directory ()
   "Toggle a broot session at the current buffer's `default-directory'.
 
-If the current buffer is a broot session (in `broot-mode'), close it:
-the session buffer — and therefore the broot process — is killed.
+If the current buffer is a broot session (in `broot-mode'), close it —
+ceding its directory to the terminal it was spawned from, when that buffer
+is still a live plain Ghostel terminal (see `my/broot--cd-source-on-close').
 Otherwise, open a new broot session rooted at `default-directory' with no
 prompt.
 
@@ -277,8 +325,7 @@ Parity with `my/dired-default-directory':
     buffer when the process exits (`ghostel-kill-buffer-on-exit')."
   (interactive)
   (if (derived-mode-p 'broot-mode)
-      (when (kill-buffer (current-buffer))
-        (message "broot closed"))
+      (my/broot--cd-source-on-close (current-buffer))
     (my/broot--open default-directory)))
 
 (provide 'broot)
