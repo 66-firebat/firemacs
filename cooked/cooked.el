@@ -24,6 +24,10 @@
   :config
   ;; Opt-in extras for testing (see comments for what to try).
   (require 'cooked-evil)                 ; evil state auto-switching + [[ / ]]
+  ;; Load completion EAGERLY so `cooked-shell-completion-functions' is non-nil
+  ;; BEFORE any shell is spawned.  If it's nil at spawn time, cooked bakes a
+  ;; startup file that does NOT source cooked-completion.bash, and TAB then
+  ;; silently does nothing in that shell (the capture can't be retrofitted).
   (require 'cooked-shell-completion)     ; TAB -> shell-native completion
   (require 'cooked-command-decorations)  ; fringe marker per command (exit code)
   ;; (require 'cooked-next-error)        ; M-g M-n over one command's output
@@ -31,6 +35,11 @@
   ;; (require 'cooked-project)           ; one terminal per project root
   ;; (require 'cooked-process)           ; pty for M-x compile / grep
   ;;                                     ;   (then: (cooked-process-mode 1))
+
+  ;; Make sure the `completion' feature is ON (it is by default, but be explicit)
+  ;; so the shell-integration snippet sources the completion capture.
+  (setq cooked-shell-integration-features
+        '(marks input-mark cwd announce completion title))
 
   ;; Unlimited scrollback (mirrors our ghostel setting: ghostel-scrollback-size nil).
   (setq cooked-scrollback-lines nil))
