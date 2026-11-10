@@ -10,13 +10,6 @@
 ;;
 ;;  Without corfu/company, completion-at-point still runs but has no visible
 ;;  popup for ambiguous completions, so TAB appears to "do nothing".
-;;
-;;  Key handling: corfu binds TAB -> `corfu-complete' (and M-TAB -> `corfu-expand')
-;;  in its own `corfu-mode-map', which is a buffer-local minor-mode map and
-;;  therefore takes precedence over evil's insert-state TAB binding.  No manual
-;;  rebinding is needed here.  The `evil-want-C-i-jump' setting (init.el) and the
-;;  `[C-i]' -> `evil-jump-forward' bindings (keybinds.el) only affect
-;;  normal/visual state, so jump-forward and cooked completion don't conflict.
 ;; =============================================================================
 
 (use-package corfu
@@ -30,20 +23,22 @@
   :config
   (global-corfu-mode 1)                  ; enable corfu-mode in every buffer
 
-  ;; Force-enable corfu in cooked terminal buffers.  `global-corfu-mode'
-  ;; deliberately skips buffers whose name starts with a space or that are
-  ;; read-only; cooked's editable input line is neither, but ensuring here makes
-  ;; TAB completion reliable regardless of the global-mode predicate.
+  ;; Force-enable corfu in cooked terminal buffers, regardless of the
+  ;; global-mode predicate.  NOTE: passing `#'corfu-mode' as the hook function
+  ;; would TOGGLE it (minor modes toggle on a nil argument); we must pass
+  ;; `(lambda () (corfu-mode 1))' to always enable.
   (with-eval-after-load 'cooked-mode
-    (add-hook 'cooked-mode-hook #'corfu-mode))
+    (add-hook 'cooked-mode-hook (lambda () (corfu-mode 1))))
 
-  ;; TAB is not bound in `corfu-mode-map' (only the popup's `corfu-map' has it).
-  ;; At a cooked prompt we need TAB to trigger `completion-at-point', which
-  ;; cooked-evil already binds in insert state.  Here we add a safe fallback that
-  ;; binds TAB directly on `cooked-mode-map' (a plain `define-key', no evil
-  ;; auxiliary-map machinery, so no `keymapp' race).
+  ;; Bind every spelling of the Tab key to completion in cooked buffers.
+  ;; In TUI Emacs with kkp (kitty keyboard protocol), the physical Tab key
+  ;; arrives as `<tab>', not `TAB'/`C-i'.  cooked-evil binds TAB and C-i in
+  ;; insert state but not `<tab>', so we add all three spellings directly on
+  ;; `cooked-mode-map' (plain `define-key', no evil auxiliary-map race).
   (with-eval-after-load 'cooked-mode
-    (define-key cooked-mode-map (kbd "TAB") #'corfu-complete)))
+    (define-key cooked-mode-map (kbd "<tab>") #'completion-at-point)
+    (define-key cooked-mode-map (kbd "TAB") #'completion-at-point)
+    (define-key cooked-mode-map (kbd "C-i") #'completion-at-point)))
 
 (provide 'corfu)
 ;; corfu.el ends here
