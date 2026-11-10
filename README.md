@@ -48,6 +48,13 @@ Launch with: `emacs -nw --init-directory <custom-emacs-directory>`
 | `C-c C-t` | any | my/eat-new | Spawn new Eat terminal (uses symbolic `<C-t>` for kkp) |
 | `C-c C-u` | any | kill-current-buffer | Kill current buffer |
 
+> **cooked terminal + corfu (TESTING, `cooked` branch):** `M-x cooked` starts a
+> terminal with no input-mode toggling. TAB at a prompt triggers `corfu-complete`
+> (corfu's own `corfu-mode-map` binding) for in-buffer completion — shell-native
+> if `cooked-shell-completion` is loaded and the shell was fresh-spawned after it.
+> C-i stays `evil-jump-forward` in normal/visual state; corfu's minor-mode map takes
+> precedence in insert state, so there is no conflict.
+
 ### SPC Leader (press `SPC` in normal/visual mode, `C-SPC` in insert/emacs mode)
 
 #### Files
@@ -222,6 +229,14 @@ Custom listing switches (-alhgG). Uses dired-find-alternate-file (RET reuses the
 ### orderless.el
 
 Flexible completion style. Splits input on spaces and matches each component independently (e.g., "fo ba" matches "foobar").
+
+### corfu/corfu.el
+
+In-buffer completion UI (popup) for `completion-at-point` candidates. Complements vertico (minibuffer-only): corfu is what makes TAB pop up candidates inside a buffer, e.g. cooked's editable input line. corfu binds TAB -> `corfu-complete` and M-TAB -> `corfu-expand` in its own minor-mode map, which takes precedence over evil's insert-state TAB; no manual rebinding needed. Auto-popup is off (`corfu-auto` nil) — TAB triggers on demand.
+
+### cooked/cooked.el (TESTING — `cooked` branch)
+
+Staging install of the cooked terminal emulator, alongside ghostel (not replacing it yet). Makes `M-x cooked` / `M-x cooked-other-window` available. Loads `cooked-evil` (evil state auto-switching), `cooked-shell-completion` (TAB → shell-native completion via `git checkout <TAB>`), and `cooked-command-decorations` (fringe marker per command by exit code). Sets unlimited scrollback. Requires the `completion' shell-integration feature to be enabled and the shell freshly spawned after the completion layer loads. See PLAN.md for the full ghostel→cooked port.
 
 ### pi.el
 

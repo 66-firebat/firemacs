@@ -434,6 +434,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 
 ;; ── Navigation ──────────────────────────────────────────────────────────────
 (my/load-module "jumpring.el")       ;; Global C-o/C-i jump ring
+(my/load-module "corfu/corfu.el")     ;; In-buffer completion UI (TAB popup, needs installed)
 
 ;; ── Terminal ────────────────────────────────────────────────────────────────
 
