@@ -441,6 +441,10 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 ;; Ghostel terminal emulator — all config lives in ghostel/ghostfire.el
 (my/load-module "ghostel/ghostfire.el")
 
+;; cooked terminal emulator — STAGING install for testing (does not replace
+;; ghostel yet).  Just makes `M-x cooked` available.  See cooked/cooked.el.
+(my/load-module "cooked/cooked.el")
+
 ;; ── Editing ─────────────────────────────────────────────────────────────────
 (my/load-module "embark.el")         ;; Context-aware actions
 (my/load-module "dired.el")          ;; Dired customizations
