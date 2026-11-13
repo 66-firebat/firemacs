@@ -67,6 +67,7 @@
 (declare-function ghostel-exec "ghostel.el" (buffer program &optional args))
 (declare-function ghostel-send-string "ghostel.el" (string))
 (declare-function ghostel--process "ghostel.el" ())
+(declare-function my/ghostel-new "ghostfire.el" (&optional dir))
 (declare-function ghostfire--check-deps "ghostfire.el" ())
 (declare-function ghostfire-consult-builder "ghostfire.el" (input))
 (declare-function ghostfire-consult-format "ghostfire.el" (line))
@@ -274,14 +275,18 @@ Ghostel terminals to `ghostfire-travel' instead."
 ;; ── Command ──────────────────────────────────────────────────────
 
 (defun my/broot--cd-source-on-close (broot-buf)
-  "Close BROOT-BUF, ceding its directory to the buffer it was spawned from.
+  "Close BROOT-BUF, putting the user into a terminal at broot's directory.
 
 If the spawning buffer (see `my/broot-source-buffer') is still a live plain
 Ghostel terminal, send the shell a `cd\n' to broot's live working directory
-(`my/broot-sync-default-directory') and switch to it, then kill BROOT-BUF.
+(`my/broot-sync-default-directory') and switch to it.
 
 Otherwise (the source buffer was never a terminal, is gone, or is another
-broot session), just kill BROOT-BUF with no cd."
+broot session), spawn a fresh terminal rooted at broot's live working
+directory via `my/ghostel-new', falling back to `default-directory' when the
+directory can't be read.
+
+In all cases BROOT-BUF is killed afterwards."
   (let* ((dir (my/broot-sync-default-directory broot-buf))
          (src (and (buffer-live-p broot-buf)
                    (buffer-local-value 'my/broot-source-buffer broot-buf)))
@@ -293,20 +298,26 @@ broot session), just kill BROOT-BUF with no cd."
                       (not (derived-mode-p 'broot-mode))
                       (bound-and-true-p ghostel--process)
                       (process-live-p ghostel--process))))))
-    (if (and src-terminal dir)
-        (progn
-          (with-current-buffer src
-            (ghostel-send-string (format "cd %s && clear\n"
-                                         (shell-quote-argument dir))))
-          (switch-to-buffer src)
-          (when (buffer-live-p broot-buf)
-            (kill-buffer broot-buf))
-          (message "broot closed → cd %s" dir))
-      ;; No live terminal source (or broot dir unreadable): plain kill.
+    (cond
+     ;; Origin is a live plain terminal: cd it (when we have a directory)
+     ;; and switch to it.
+     (src-terminal
+      (when dir
+        (with-current-buffer src
+          (ghostel-send-string (format "cd %s && clear\n"
+                                       (shell-quote-argument dir)))))
+      (switch-to-buffer src)
       (when (buffer-live-p broot-buf)
         (kill-buffer broot-buf))
-      (when src
-        (message "broot closed")))))
+      (if dir
+          (message "broot closed → cd %s" dir)
+        (message "broot closed")))
+     ;; Not a terminal origin: spawn a fresh terminal at broot's cwd.
+     (t
+      (my/ghostel-new (or dir default-directory))
+      (when (buffer-live-p broot-buf)
+        (kill-buffer broot-buf))
+      (message "broot closed → spawned terminal")))))
 
 (defun my/broot-default-directory ()
   "Toggle a broot session at the current buffer's `default-directory'.
