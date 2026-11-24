@@ -551,6 +551,43 @@ unbound); the `>` shows a suggested nvim lhs.
         would re-install Snacks' finder and discard our list).
   - [x] `init.lua` → `require("config.mru").setup()`.  ← **CURRENT**
 
+### Per-mode terminal cursor (`lua/config/cursor.lua`)
+
+Port of `emacs/evil-cursor.el`.  `options.lua` sets `vim.o.guicursor = ""` so
+nvim never emits its own cursor escapes; this module is then the sole writer,
+sending raw sequences with `vim.api.nvim_ui_send()` (nvim 0.12) — the nvim
+equivalent of Emacs' `send-string-to-terminal`, and the only correct API for
+talking to a TUI's host terminal.
+
+| nvim mode | colour (OSC 12) | shape (DECSCUSR) |
+|---|---|---|
+| normal / terminal-normal | `#ff4400` | `0` = terminal default |
+| insert / replace / **terminal mode** | `#d3d3d3` | `5` = blinking bar |
+| visual / select / operator-pending | `#1bfd9c` | `3` = blinking underline |
+
+All shapes blink (1/3/5 are the blinking DECSCUSR variants).  `VimLeavePre`
+resets (OSC 112 + DECSCUSR 0) so the terminal isn't left with nvim's last style.
+
+**Terminal mode uses the INSERT style** (grey bar), since typing in a terminal is
+morally insert mode.  Gotcha: `mode()` reports terminal mode as `"nt"` — the
+leading `n` is the no-mouse flag — so `style_for_mode` must search for `"t"`
+anywhere in the string, not just the first character.
+
+**`guicursor = ""` alone is not enough.**  nvim also emits `t_Ss` (shape start)
+and `t_Se` (shape END) from terminfo; on redraws it can re-send `t_Se`, which
+resets the terminal to its configured default and made shapes snap back to
+Ghostty's hollow block as soon as the cursor moved.  `options.lua` therefore also
+blanks both capabilities: `vim.cmd("set t_Ss= t_Se=")`.  NOTE they are **not**
+addressable as `vim.o.t_Ss` — that raises `Unknown option`; they must be set
+through `:set`.  With both blanked, `cursor.lua` is the only writer of DECSCUSR.
+
+**Hollow block is not addressable by DECSCUSR.** Ghostty implements it as a
+config-only style (`cursor-style = block_hollow`) and reports it as DECSCUSR
+1/2; upstream confirms an application cannot request it (ghostty discussion
+#5876).  Hence normal sends **DECSCUSR 0**, which Ghostty restores to whatever
+`cursor-style` its config file sets — so this depends on
+`git_repositories/ghostty/config` keeping `cursor-style = block_hollow`.
+
 ### Picker previews (post-implementation refinement)
 
 Snacks' picker **previews** the highlighted item by loading it into a preview
@@ -568,6 +605,16 @@ and desynchronising the picker's numbers from the tab bar.  Resolution
   Verified: previewing `b.txt` renders `2  b.txt  1  c.txt  3  a.txt`.
 - Note the picker's preview window may hold an unrelated scratch buffer, so the
   override additionally requires `mru.rank(preview)` to be non-nil.
+- **Cross-group preview switches the whole tab bar.**  The tab bar follows the
+  previewed buffer's GROUP, not the window buffer's group, so previewing a
+  terminal from a Docs window temporarily shows the Terminal group's tabs.
+- **Repainting is the hard part.**  `_render()` recomputing is not enough — the
+  winbar only repaints on a real redraw, and `:redrawstatus!` does NOT repaint a
+  non-current window's winbar (the tab window is not current while the picker
+  float has focus).  The only reliable call is
+  `vim.api.nvim__redraw({ winbar = true, flush = true })`, driven from the
+  picker's `on_change` hook.  `on_change` fires BEFORE the preview buffer is
+  swapped, so the redraw must be deferred one tick with `vim.schedule`.
 
 ### Implementation notes / gotchas discovered
 
@@ -616,6 +663,15 @@ and desynchronising the picker's numbers from the tab bar.  Resolution
       (was `vim.opt`, leaking spell into every buffer).
 - [x] **Snacks scroll**: terminals stay excluded (animation uses `:normal!`,
       illegal in terminal mode).
+- [x] **catppuccin + aider disabled.**  `lua/plugins/aider.lua` -> `.bak`;
+      the `catppuccin/nvim` spec in `lua/plugins/colorschemes.lua` is commented
+      out in place (lines 428-861) with the plugin list's closing brace
+      preserved.  catppuccin was loaded but never activated (active cs is
+      `monoglow-z`; the only `colorscheme catppuccin` line was already
+      commented), and its sole `guicursor` mutation lives in the opt-in
+      `reactive` module, which was not enabled.  Verified: module no longer
+      loaded, no lazy spec entry, `guicursor` remains the nvim default, and
+      `gruvbox-material` / `base16-nvim` specs are untouched.
 - [x] **Git source in oil buffers**: `oil-git.nvim` (own `git status` +
       `OilGit*` highlights), not gitsigns (gitsigns does not attach to oil).
 
